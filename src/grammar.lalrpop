@@ -1,11 +1,14 @@
-
-
+use crate::structure::*;
+use std::format;
+use std::vec;
+use std::str::FromStr;
 
 grammar;
 
 
 match {
     r"#.*\n" => {},
+    r"[ \t\n\r]+" => {},
 
     "PROCEDURE",
     "IS",
@@ -53,94 +56,168 @@ match {
     ":="
 } else {
     r"[_a-z]+" => PIDENTIFIER,
-    r"[0-9]+" => NUM
+    r"[0-9]+" => NUM,
+
 }
 
-pub program_all: () = {
-    procedures main
+pub program_all: Program = {
+    <p:procedures> <m:main> => Program {
+        procedures: p,
+        declarations: m.0,
+        commands: m.1
+    }
 }
 
-procedures: () = {
-    procedures "PROCEDURE" proc_head "IS" declarations "BEGIN" commands "END",
-    procedures "PROCEDURE" proc_head "IS" "BEGIN" commands "END"
+procedures: Vec<Procedure> = {
+    <vec:procedures> "PROCEDURE" <head:proc_head> "IS" <decl:declarations> "BEGIN" <com:commands> "END" => {
+        let mut v = vec;
+        v.push(Procedure {
+            name: head.0,
+            arguments: head.1,
+            declarations: decl,
+            commands: com
+        });
+        v
+    },
+    <vec:procedures> "PROCEDURE" <head:proc_head> "IS" "BEGIN" <com:commands> "END" => {
+        let mut v = vec;
+        v.push(Procedure {
+            name: head.0,
+            arguments: head.1,
+            declarations: Vec::new(),
+            commands: com
+        });
+        v
+    },
+    () => Vec::new()
 }
 
-main: () = {
-    "PROGRAM" "IS" declarations "BEGIN" commands "END",
-    "PROGRAM" "IS" "BEGIN" commands "END"
+main: (Vec<Declaration>, Vec<Command>) = {
+    "PROGRAM" "IS" <d:declarations> "BEGIN" <c:commands> "END" => {
+        (d, c)
+    },
+    "PROGRAM" "IS" "BEGIN" <c:commands> "END" => {
+        (Vec::new(), c)
+    }
 }
 
-commands: () = {
-    commands command,
-    command
+commands: Vec<Command> = {
+    <vec:commands> <c:command> => {
+        let mut v = vec;
+        v.push(c);
+        v
+    },
+    command => {
+        let mut v = Vec::new();
+        v.push(<>);
+        v
+    }
 }
 
-command: () = {
-    identifier ":=" expression ";",
-    "IF" condition "THEN" commands "ELSE" commands "ENDIF",
-    "IF" condition "THEN" commands "ENDIF",
-    "WHILE" condition "DO" commands "ENDWHILE",
-    "REPEAT" commands "UNTIL" condition ";",
-    "FOR" PIDENTIFIER "FROM" value "TO" value "DO" commands "ENDFOR",
-    "FOR" PIDENTIFIER "FROM" value "DOWNTO" value "DO" commands "ENDFOR",
-    proc_call ";",
-    "READ" identifier ";",
-    "WRITE" value ";"
+command: Command = {
+    <i:identifier> ":=" <e:expression> ";" => Command::Assign(i, e),
+    "IF" <cond:condition> "THEN" <com:commands> "ELSE" <com2:commands> "ENDIF" => Command::IfElse(cond, com, com2),
+    "IF" <cond:condition> "THEN" <com:commands> "ENDIF" => Command::If(cond, com),
+    "WHILE" <cond:condition> "DO" <com:commands> "ENDWHILE" => Command::While(cond, com),
+    "REPEAT" <com:commands> "UNTIL" <cond:condition> ";" => Command::Repeat(cond, com),
+    "FOR" <var:PIDENTIFIER> "FROM" <from:value> "TO" <to:value> "DO" <com:commands> "ENDFOR" => Command::For(var.to_string(), from, to, com),
+    "FOR" <var:PIDENTIFIER> "FROM" <from:value> "DOWNTO" <to:value> "DO" <com:commands> "ENDFOR" => Command::ForDown(var.to_string(), from, to, com),
+    <c:proc_call> ";" => c,
+    "READ" <i:identifier> ";" => Command::Read(i),
+    "WRITE" <v:value> ";" => Command::Write(v)
 }
 
-proc_head: () = {
-    PIDENTIFIER "(" args_decl ")"
+proc_head: (String, Vec<ArgumentDecl>) = {
+    <p:PIDENTIFIER> "(" <a:args_decl> ")" => {
+        (p.to_string(), a)
+    }
 }
 
-proc_call: () = {
-    PIDENTIFIER "(" args ")"
+proc_call: Command = {
+    <p:PIDENTIFIER> "(" <args:args> ")" => Command::FunctionCall(p.to_string(), args )
 }
 
-declarations: () = {
-    declarations "," PIDENTIFIER,
-    declarations "," PIDENTIFIER "[" NUM ":" NUM "]",
-    PIDENTIFIER,
-    PIDENTIFIER "[" NUM ":" NUM "]"
+declarations: Vec<Declaration> = {
+    <vec:declarations> "," <p:PIDENTIFIER> => {
+        let mut v = vec;
+        v.push(Declaration::VariableDecl(p.to_string()));
+        v
+    },
+    <vec:declarations> "," <p:PIDENTIFIER> "[" <n1:NUM> ":" <n2:NUM> "]" => {
+        let mut v = vec;
+        v.push(Declaration::ArrayDecl(p.to_string(), i64::from_str(n1).unwrap(), i64::from_str(n2).unwrap()));
+        v
+    },
+    <p:PIDENTIFIER> => {
+        vec![Declaration::VariableDecl(p.to_string())]
+    },
+    <p:PIDENTIFIER> "[" <n1:NUM> ":" <n2:NUM> "]" => {
+        vec![Declaration::ArrayDecl(p.to_string(), i64::from_str(n1).unwrap(), i64::from_str(n2).unwrap())]
+    }
 }
 
-args_decl: () = {
-    args_decl "," PIDENTIFIER,
-    args_decl "," "T" PIDENTIFIER,
-    PIDENTIFIER,
-    "T" PIDENTIFIER
+args_decl: Vec<ArgumentDecl> = {
+    <vec:args_decl> "," <p:PIDENTIFIER> => {
+        let mut v = vec;
+        v.push(ArgumentDecl::VariableArg(p.to_string()));
+        v
+    },
+    <vec:args_decl> "," "T" <p:PIDENTIFIER> => {
+        let mut v = vec;
+        v.push(ArgumentDecl::ArrayArg(p.to_string()));
+        v
+    },
+    <p:PIDENTIFIER> => {
+       vec![ArgumentDecl::VariableArg(p.to_string())]
+    },
+    "T" <p:PIDENTIFIER> => {
+        vec![ArgumentDecl::ArrayArg(p.to_string())]
+    }
+
 }
 
-args: () = {
-    args "," PIDENTIFIER,
-    PIDENTIFIER
+args: Vec<String> = {
+    <vec:args> "," <p:PIDENTIFIER> => {
+        let mut v = vec;
+        v.push(p.to_string());
+        v
+    },
+    PIDENTIFIER => {
+        vec![<>.to_string()]
+    }
+ }
+
+expression: Expression = {
+    value => Expression::Value(<>),
+    <v1:value> "+" <v2:value> => Expression::Add(v1, v2),
+    <v1:value> "-" <v2:value> => Expression::Subtract(v1, v2),
+    <v1:value> "*" <v2:value> => Expression::Multiply(v1, v2),
+    <v1:value> "/" <v2:value> => Expression::Divide(v1, v2),
+    <v1:value> "%" <v2:value> => Expression::Modulo(v1, v2)
 }
 
-expression: () = {
-    value,
-    value "+" value,
-    value "-" value,
-    value "*" value,
-    value "/" value,
-    value "%" value
+condition: Condition = {
+    <v1:value> "=" <v2:value> => Condition::Equal(v1, v2),
+    <v1:value> "!=" <v2:value> => Condition::NotEqual(v1, v2),
+    <v1:value> ">" <v2:value> => Condition::Lesser(v1, v2),
+    <v1:value> "<" <v2:value> => Condition::Greater(v1, v2),
+    <v1:value> ">=" <v2:value> => Condition::LesserEqual(v1, v2),
+    <v1:value> "<=" <v2:value> => Condition::GreaterEqual(v1, v2)
 }
 
-condition: () = {
-    value "=" value,
-    value "!=" value,
-    value ">" value,
-    value "<" value,
-    value ">=" value,
-    value "<=" value
+value: Value = {
+    NUM => Value::Literal(i64::from_str(<>).unwrap()),
+    identifier => Value::Identifier(<>)
 }
 
-value: () = {
-    NUM,
-    identifier
-}
-
-identifier: () = {
-    PIDENTIFIER,
-    PIDENTIFIER "[" PIDENTIFIER "]",
-    PIDENTIFIER "[" NUM "]"
-
+identifier: Variable = {
+    <p:PIDENTIFIER> => {
+        Variable::Variable(p.to_string())
+    },
+    <p:PIDENTIFIER> "[" <i:PIDENTIFIER> "]" => {
+        Variable::ArrayVar(p.to_string(), i.to_string())
+    },
+    <p:PIDENTIFIER> "[" <i:NUM> "]" => {
+        Variable::ArrayLit(p.to_string(), i64::from_str(i).unwrap())
+    }
 }
