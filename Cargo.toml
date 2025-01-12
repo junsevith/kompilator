@@ -1,0 +1,14 @@
+[package]
+name = "kompilator"
+version = "0.1.0"
+edition = "2021"
+
+# The generated code depends on lalrpop-util.
+[dependencies]
+lalrpop-util = { version = "0.22.0" , features = ["lexer", "unicode"]}
+
+# Add a build-time dependency on the lalrpop library:
+[build-dependencies]
+# If you are supplying your own external lexer you can disable default features so that the
+# built-in lexer feature is not included
+lalrpop = "0.22.0"
