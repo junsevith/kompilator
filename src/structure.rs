@@ -1,5 +1,4 @@
 use std::fmt::{Debug, Formatter};
-use std::ptr::write;
 
 pub struct Program {
     pub procedures: Vec<Procedure>,
@@ -26,7 +25,7 @@ pub enum Declaration {
 }
 
 pub enum Command {
-    Assign(Variable, Expression),
+    Assign(Identifier, Expression),
     If(Condition, Vec<Command>),
     IfElse(Condition, Vec<Command>, Vec<Command>),
     While(Condition, Vec<Command>),
@@ -34,11 +33,9 @@ pub enum Command {
     For(String, Value, Value, Vec<Command>),
     ForDown(String, Value, Value, Vec<Command>),
     FunctionCall(String, Vec<String>),
-    Read(Variable),
+    Read(Identifier),
     Write(Value),
 }
-
-
 
 #[derive(Debug)]
 pub enum Condition {
@@ -53,11 +50,11 @@ pub enum Condition {
 #[derive(Debug)]
 pub enum Value {
     Literal(i64),
-    Identifier(Variable),
+    Identifier(Identifier),
 }
 
 #[derive(Debug)]
-pub enum Variable {
+pub enum Identifier {
     Variable(String),
     ArrayLit(String, i64),
     ArrayVar(String, String),
