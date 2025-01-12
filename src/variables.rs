@@ -11,6 +11,7 @@ pub struct VariableDictionary {
 #[derive(Debug)]
 struct Variable {
     cell: usize,
+    init: bool,
 }
 #[derive(Debug)]
 struct Array {
@@ -22,7 +23,7 @@ struct Array {
 #[derive(Debug)]
 enum Pointer {
     Cell(usize),
-    IndirectCell(i64, usize) // array pointer to which you should add index, Cell of variable that contains index,
+    IndirectCell(i64, usize), // array pointer to which you should add index, Cell of variable that contains index,
 }
 
 enum VariableError {
@@ -33,6 +34,7 @@ enum VariableError {
     NoArray(String),
     NoVariable(String),
     InvalidIndex(String, i64),
+    NotInitialized(String),
 }
 impl Debug for VariableError {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
@@ -59,6 +61,9 @@ impl Debug for VariableError {
             }
             VariableError::InvalidIndex(name, index) => {
                 write!(f, "Invalid index {} for array {}", index, name)
+            }
+            VariableError::NotInitialized(name) => {
+                write!(f, "Variable {} was not initialized", name)
             }
         }
     }
@@ -90,6 +95,7 @@ impl VariableDictionary {
                     name,
                     Variable {
                         cell: self.cell_counter,
+                        init: false,
                     },
                 );
                 self.cell_counter += 1;
@@ -137,7 +143,7 @@ impl VariableDictionary {
         }
     }
 
-    pub fn read(&self, var: Identifier) -> Result<Pointer, VariableError> {
+    fn pointer(&self, var: Identifier) -> Result<Pointer, VariableError> {
         match var {
             Identifier::Variable(name) => {
                 let variable = self.get_variable(&name)?;
@@ -153,11 +159,36 @@ impl VariableDictionary {
                 }
             }
             Identifier::ArrayVar(name, variable) => {
-                let variable = self.get_variable(&variable) ?;
-                let array = self.get_array(&name) ?;
+                let variable = self.get_variable(&variable)?;
+                let array = self.get_array(&name)?;
                 let offset = array.first_cell as i64 - array.start;
-                Ok(Pointer::IndirectCell(offset, variable.cell,))
-            },
+                Ok(Pointer::IndirectCell(offset, variable.cell))
+            }
+        }
+    }
+
+    pub fn read(&self, var: Identifier) -> Result<Pointer, VariableError> {
+        match var {
+            Identifier::Variable(name) => {
+                let variable = self.get_variable(&name)?;
+                if variable.init {
+                    self.pointer(Identifier::Variable(name))
+                } else {
+                    Err(VariableError::NotInitialized(name))
+                }
+            }
+            something => self.pointer(something),
+        }
+    }
+
+    pub fn write(&mut self, var: Identifier) -> Result<Pointer, VariableError> {
+        match var {
+            Identifier::Variable(name) => {
+                self.get_variable(&name)?;
+                self.variables.get_mut(&name).unwrap().init = true;
+                self.pointer(Identifier::Variable(name))
+            }
+            something => self.pointer(something),
         }
     }
 }
@@ -174,12 +205,18 @@ pub fn test1() {
     dict.add(Declaration::ArrayDecl("d".to_string(), -10, 10))
         .unwrap();
     println!("{:?}", dict);
-    let res = dict.read(Identifier::Variable("a".to_string())).unwrap();
+    let res = dict.pointer(Identifier::Variable("a".to_string())).unwrap();
     println!("{:?}", res);
-    let res = dict.read(Identifier::ArrayLit("c".to_string(), 5)).unwrap();
+    let res = dict
+        .pointer(Identifier::ArrayLit("c".to_string(), 5))
+        .unwrap();
     println!("{:?}", res);
-    let res = dict.read(Identifier::ArrayLit("d".to_string(), -3)).unwrap();
+    let res = dict
+        .pointer(Identifier::ArrayLit("d".to_string(), -3))
+        .unwrap();
     println!("{:?}", res);
-    let res = dict.read(Identifier::ArrayVar("d".to_string(), "a".to_string())).unwrap();
+    let res = dict
+        .pointer(Identifier::ArrayVar("d".to_string(), "a".to_string()))
+        .unwrap();
     println!("{:?}", res);
 }

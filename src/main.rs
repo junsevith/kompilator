@@ -12,6 +12,8 @@ lalrpop_mod!(
     grammar
 );
 
+// Spytać czy błędy muszą wyświetlać linijkę
+
 fn main() {
     let parser = grammar::program_allParser::new();
     let file = std::fs::read_to_string("program3.imp").unwrap();
