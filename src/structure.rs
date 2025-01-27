@@ -25,7 +25,7 @@ pub enum Declaration {
 }
 
 pub enum Command {
-    Assign(Identifier, Expression),
+    Assign(Identifier, Operation),
     If(Condition, Vec<Command>),
     IfElse(Condition, Vec<Command>, Vec<Command>),
     While(Condition, Vec<Command>),
@@ -38,13 +38,20 @@ pub enum Command {
 }
 
 #[derive(Debug)]
-pub enum Condition {
-    Equal(Value, Value),
-    NotEqual(Value, Value),
-    Lesser(Value, Value),
-    Greater(Value, Value),
-    LesserEqual(Value, Value),
-    GreaterEqual(Value, Value),
+pub struct Condition {
+    pub(crate) operator: ConditionOperator,
+    pub(crate) left: Value,
+    pub(crate) right: Value,
+}
+
+#[derive(Debug)]
+pub enum ConditionOperator {
+    Equal,
+    NotEqual,
+    Lesser,
+    Greater,
+    LesserEqual,
+    GreaterEqual,
 }
 
 #[derive(Debug)]
@@ -53,21 +60,40 @@ pub enum Value {
     Identifier(Identifier),
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub enum Identifier {
     Variable(String),
     ArrayLit(String, i64),
     ArrayVar(String, String),
 }
 
+// #[derive(Debug)]
+// pub enum Expression {
+//     Add(Value, Value),
+//     Subtract(Value, Value),
+//     Multiply(Value, Value),
+//     Divide(Value, Value),
+//     Modulo(Value, Value),
+//     Value(Value),
+// }
+
 #[derive(Debug)]
-pub enum Expression {
-    Add(Value, Value),
-    Subtract(Value, Value),
-    Multiply(Value, Value),
-    Divide(Value, Value),
-    Modulo(Value, Value),
-    Value(Value),
+pub struct Operation {
+    pub(crate) operator: Operator,
+    pub(crate) left: Value,
+    pub(crate) right: Value,
+}
+
+#[derive(Debug)]
+pub enum Operator {
+    Add,
+    Subtract,
+    Multiply,
+    Divide,
+    Modulo,
+    Value,
+    ShiftLeft,
+    ShiftRight,
 }
 
 impl Debug for Program {
@@ -146,7 +172,7 @@ impl Debug for Command {
                 write!(f, "End for")?;
                 Ok(())
             }
-            Command::FunctionCall(name, args) => write!(f, "Call function {} with args {:?}", name, args),
+            Command::FunctionCall(name, args) => write!(f, "Call function \"{}\" with args {:?}", name, args),
             Command::Read(var) => write!(f, "Read value to {:?}", var),
             Command::Write(val) => write!(f, "Write value {:?}", val),
         }

@@ -1,29 +1,38 @@
-use crate::structure::{Declaration, Identifier};
+use crate::constants::ConstantsHandler;
+use crate::structure::{ArgumentDecl, Declaration, Identifier};
 use std::collections::HashMap;
 use std::fmt::Debug;
 
 #[derive(Debug)]
-pub struct VariableDictionary {
+pub struct VariableDictionary<'a> {
     variables: HashMap<String, Variable>,
     arrays: HashMap<String, Array>,
+    literals: &'a ConstantsHandler,
     cell_counter: usize,
 }
 #[derive(Debug)]
 struct Variable {
-    cell: usize,
+    cell: Pointer,
     init: bool,
 }
 #[derive(Debug)]
 struct Array {
+    offset: i64,
+    offset_cell: Pointer,
     start: i64,
     length: usize,
-    first_cell: usize,
 }
 
-#[derive(Debug)]
+#[derive(Debug, Copy, Clone)]
+enum Type {
+    Variable(Pointer),
+    Array(Pointer, Pointer),
+}
+
+#[derive(Clone, Copy, Debug)]
 enum Pointer {
     Cell(usize),
-    IndirectCell(i64, usize), // array pointer to which you should add index, Cell of variable that contains index,
+    IndirectCell(usize),
 }
 
 enum VariableError {
@@ -68,11 +77,12 @@ impl Debug for VariableError {
         }
     }
 }
-impl VariableDictionary {
-    pub fn new(start: usize) -> Self {
+impl VariableDictionary<'_> {
+    pub fn new(start: usize, literals: &ConstantsHandler) -> VariableDictionary {
         VariableDictionary {
             variables: HashMap::new(),
             arrays: HashMap::new(),
+            literals,
             cell_counter: start,
         }
     }
@@ -94,7 +104,7 @@ impl VariableDictionary {
                 self.variables.insert(
                     name,
                     Variable {
-                        cell: self.cell_counter,
+                        cell: Pointer::Cell(self.cell_counter),
                         init: false,
                     },
                 );
@@ -106,12 +116,43 @@ impl VariableDictionary {
                 self.arrays.insert(
                     name,
                     Array {
+                        offset: self.cell_counter as i64 - from + 1,
+                        offset_cell: Pointer::Cell(self.cell_counter),
                         start: from,
                         length: len,
-                        first_cell: self.cell_counter,
                     },
                 );
-                self.cell_counter += len;
+                self.cell_counter += len + 1;
+            }
+        }
+        Ok(())
+    }
+
+    pub fn add_argument(&mut self, var: ArgumentDecl) -> Result<(), VariableError> {
+        match var {
+            ArgumentDecl::VariableArg(name) => {
+                self.check_name(&name)?;
+                self.variables.insert(
+                    name,
+                    Variable {
+                        cell: Pointer::IndirectCell(self.cell_counter),
+                        init: true,
+                    },
+                );
+                self.cell_counter += 1;
+            }
+            ArgumentDecl::ArrayArg(name) => {
+                self.check_name(&name)?;
+                self.arrays.insert(
+                    name,
+                    Array {
+                        offset: 0,
+                        offset_cell: Pointer::IndirectCell(self.cell_counter),
+                        start: 0,
+                        length: 0,
+                    },
+                );
+                self.cell_counter += 1;
             }
         }
         Ok(())
@@ -143,31 +184,39 @@ impl VariableDictionary {
         }
     }
 
-    fn pointer(&self, var: Identifier) -> Result<Pointer, VariableError> {
+    fn pointer(&self, var: Identifier) -> Result<Type, VariableError> {
         match var {
             Identifier::Variable(name) => {
                 let variable = self.get_variable(&name)?;
-                Ok(Pointer::Cell(variable.cell))
+                Ok(Type::Variable(variable.cell))
             }
             Identifier::ArrayLit(name, index) => {
                 let array = self.get_array(&name)?;
-                let index = index - array.start;
-                if index < 0 || index >= array.length as i64 {
-                    Err(VariableError::InvalidIndex(name, index))
-                } else {
-                    Ok(Pointer::Cell(array.first_cell + index as usize))
+                match array.offset_cell {
+                    Pointer::Cell(_) => {
+                        let translated_index = index - array.start;
+                        if translated_index < 0 || translated_index >= array.length as i64 {
+                            Err(VariableError::InvalidIndex(name, translated_index))
+                        } else {
+                            Ok(Type::Variable(Pointer::Cell(
+                                (array.offset + index) as usize,
+                            )))
+                        }
+                    }
+                    Pointer::IndirectCell(_) => {
+                        panic!("IndirectCell in ArrayLit");
+                    }
                 }
             }
             Identifier::ArrayVar(name, variable) => {
                 let variable = self.get_variable(&variable)?;
                 let array = self.get_array(&name)?;
-                let offset = array.first_cell as i64 - array.start;
-                Ok(Pointer::IndirectCell(offset, variable.cell))
+                Ok(Type::Array(array.offset_cell, variable.cell))
             }
         }
     }
 
-    pub fn read(&self, var: Identifier) -> Result<Pointer, VariableError> {
+    pub fn read(&self, var: Identifier) -> Result<Type, VariableError> {
         match var {
             Identifier::Variable(name) => {
                 let variable = self.get_variable(&name)?;
@@ -181,7 +230,7 @@ impl VariableDictionary {
         }
     }
 
-    pub fn write(&mut self, var: Identifier) -> Result<Pointer, VariableError> {
+    pub fn write(&mut self, var: Identifier) -> Result<Type, VariableError> {
         match var {
             Identifier::Variable(name) => {
                 self.get_variable(&name)?;
@@ -191,11 +240,23 @@ impl VariableDictionary {
             something => self.pointer(something),
         }
     }
-}
 
+    pub fn init_variables(&mut self, vars: Vec<Declaration>) {
+        for var in vars {
+            self.add(var).unwrap();
+        }
+    }
+
+    pub fn init_arguments(&mut self, args: Vec<ArgumentDecl>) {
+        for arg in args {
+            self.add_argument(arg).unwrap();
+        }
+    }
+}
 #[test]
 pub fn test1() {
-    let mut dict = VariableDictionary::new(1);
+    let lit = ConstantsHandler::new(1);
+    let mut dict = VariableDictionary::new(1, &lit);
     dict.add(Declaration::VariableDecl("a".to_string()))
         .unwrap();
     dict.add(Declaration::VariableDecl("b".to_string()))
@@ -208,11 +269,15 @@ pub fn test1() {
     let res = dict.pointer(Identifier::Variable("a".to_string())).unwrap();
     println!("{:?}", res);
     let res = dict
-        .pointer(Identifier::ArrayLit("c".to_string(), 5))
+        .pointer(Identifier::ArrayLit("c".to_string(), 1))
         .unwrap();
     println!("{:?}", res);
     let res = dict
-        .pointer(Identifier::ArrayLit("d".to_string(), -3))
+        .pointer(Identifier::ArrayLit("d".to_string(), -10))
+        .unwrap();
+    println!("{:?}", res);
+    let res = dict
+        .pointer(Identifier::ArrayVar("c".to_string(), "b".to_string()))
         .unwrap();
     println!("{:?}", res);
     let res = dict

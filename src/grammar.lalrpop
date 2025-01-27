@@ -187,22 +187,22 @@ args: Vec<String> = {
     }
  }
 
-expression: Expression = {
-    value => Expression::Value(<>),
-    <v1:value> "+" <v2:value> => Expression::Add(v1, v2),
-    <v1:value> "-" <v2:value> => Expression::Subtract(v1, v2),
-    <v1:value> "*" <v2:value> => Expression::Multiply(v1, v2),
-    <v1:value> "/" <v2:value> => Expression::Divide(v1, v2),
-    <v1:value> "%" <v2:value> => Expression::Modulo(v1, v2)
+expression: Operation = {
+    value => Operation{operator: Operator::Value, left: <>, right: Value::Literal(0)},
+    <v1:value> "+" <v2:value> => Operation{operator: Operator::Add, left: v1, right: v2},
+    <v1:value> "-" <v2:value> => Operation{operator: Operator::Subtract, left: v1, right: v2},
+    <v1:value> "*" <v2:value> => Operation{operator: Operator::Multiply, left: v1, right: v2},
+    <v1:value> "/" <v2:value> => Operation{operator: Operator::Divide, left: v1, right: v2},
+    <v1:value> "%" <v2:value> => Operation{operator: Operator::Modulo, left: v1, right: v2}
 }
 
 condition: Condition = {
-    <v1:value> "=" <v2:value> => Condition::Equal(v1, v2),
-    <v1:value> "!=" <v2:value> => Condition::NotEqual(v1, v2),
-    <v1:value> ">" <v2:value> => Condition::Lesser(v1, v2),
-    <v1:value> "<" <v2:value> => Condition::Greater(v1, v2),
-    <v1:value> ">=" <v2:value> => Condition::LesserEqual(v1, v2),
-    <v1:value> "<=" <v2:value> => Condition::GreaterEqual(v1, v2)
+    <v1:value> "=" <v2:value> => Condition{operator: ConditionOperator::Equal, left: v1, right: v2},
+    <v1:value> "!=" <v2:value> => Condition{operator: ConditionOperator::NotEqual, left: v1, right: v2},
+    <v1:value> ">" <v2:value> => Condition{operator: ConditionOperator::Greater, left: v1, right: v2},
+    <v1:value> "<" <v2:value> => Condition{operator: ConditionOperator::Lesser, left: v1, right: v2},
+    <v1:value> ">=" <v2:value> => Condition{operator: ConditionOperator::GreaterEqual, left: v1, right: v2},
+    <v1:value> "<=" <v2:value> => Condition{operator: ConditionOperator::LesserEqual, left: v1, right: v2}
 }
 
 value: Value = {
