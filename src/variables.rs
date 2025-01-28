@@ -1,13 +1,11 @@
-use crate::constants::ConstantsHandler;
-use crate::structure::{ArgumentDecl, Declaration, Identifier};
+use crate::structure::{ArgumentDecl, Declaration, Identifier, Value};
 use std::collections::HashMap;
 use std::fmt::Debug;
 
 #[derive(Debug)]
-pub struct VariableDictionary<'a> {
+pub struct VariableDictionary {
     variables: HashMap<String, Variable>,
     arrays: HashMap<String, Array>,
-    literals: &'a ConstantsHandler,
     cell_counter: usize,
 }
 #[derive(Debug)]
@@ -17,25 +15,25 @@ struct Variable {
 }
 #[derive(Debug)]
 struct Array {
-    offset: i64,
-    offset_cell: Pointer,
+    offset: Pointer,
     start: i64,
     length: usize,
 }
 
 #[derive(Debug, Copy, Clone)]
-enum Type {
+pub enum Type {
     Variable(Pointer),
     Array(Pointer, Pointer),
 }
 
 #[derive(Clone, Copy, Debug)]
-enum Pointer {
+pub enum Pointer {
     Cell(usize),
     IndirectCell(usize),
+    Literal(i64)
 }
 
-enum VariableError {
+pub enum VariableError {
     ArrayCollision(String),
     VariableCollision(String),
     ArrayMixup(String),
@@ -77,12 +75,11 @@ impl Debug for VariableError {
         }
     }
 }
-impl VariableDictionary<'_> {
-    pub fn new(start: usize, literals: &ConstantsHandler) -> VariableDictionary {
+impl VariableDictionary {
+    pub fn new(start: usize) -> VariableDictionary {
         VariableDictionary {
             variables: HashMap::new(),
             arrays: HashMap::new(),
-            literals,
             cell_counter: start,
         }
     }
@@ -113,16 +110,16 @@ impl VariableDictionary<'_> {
             Declaration::ArrayDecl(name, from, to) => {
                 self.check_name(&name)?;
                 let len = (to - from + 1) as usize;
+                let offset = self.cell_counter as i64 - from;
                 self.arrays.insert(
                     name,
                     Array {
-                        offset: self.cell_counter as i64 - from + 1,
-                        offset_cell: Pointer::Cell(self.cell_counter),
+                        offset: Pointer::Literal(offset),
                         start: from,
                         length: len,
                     },
                 );
-                self.cell_counter += len + 1;
+                self.cell_counter += len;
             }
         }
         Ok(())
@@ -146,8 +143,7 @@ impl VariableDictionary<'_> {
                 self.arrays.insert(
                     name,
                     Array {
-                        offset: 0,
-                        offset_cell: Pointer::IndirectCell(self.cell_counter),
+                        offset: Pointer::IndirectCell(self.cell_counter),
                         start: 0,
                         length: 0,
                     },
@@ -192,31 +188,34 @@ impl VariableDictionary<'_> {
             }
             Identifier::ArrayLit(name, index) => {
                 let array = self.get_array(&name)?;
-                match array.offset_cell {
-                    Pointer::Cell(_) => {
+                match array.offset {
+                    Pointer::Literal(lit) => {
                         let translated_index = index - array.start;
                         if translated_index < 0 || translated_index >= array.length as i64 {
                             Err(VariableError::InvalidIndex(name, translated_index))
                         } else {
                             Ok(Type::Variable(Pointer::Cell(
-                                (array.offset + index) as usize,
+                                (lit + index) as usize,
                             )))
                         }
                     }
                     Pointer::IndirectCell(_) => {
-                        panic!("IndirectCell in ArrayLit");
+                        Ok(Type::Array(array.offset, Pointer::Literal(index)))
+                    }
+                    _ => {
+                        panic!("Cell in ArrayLit");
                     }
                 }
             }
             Identifier::ArrayVar(name, variable) => {
                 let variable = self.get_variable(&variable)?;
                 let array = self.get_array(&name)?;
-                Ok(Type::Array(array.offset_cell, variable.cell))
+                Ok(Type::Array(array.offset, variable.cell))
             }
         }
     }
 
-    pub fn read(&self, var: Identifier) -> Result<Type, VariableError> {
+    pub fn read_identifier(&self, var: Identifier) -> Result<Type, VariableError> {
         match var {
             Identifier::Variable(name) => {
                 let variable = self.get_variable(&name)?;
@@ -230,7 +229,7 @@ impl VariableDictionary<'_> {
         }
     }
 
-    pub fn write(&mut self, var: Identifier) -> Result<Type, VariableError> {
+    pub fn write_identifier(&mut self, var: Identifier) -> Result<Type, VariableError> {
         match var {
             Identifier::Variable(name) => {
                 self.get_variable(&name)?;
@@ -238,6 +237,28 @@ impl VariableDictionary<'_> {
                 self.pointer(Identifier::Variable(name))
             }
             something => self.pointer(something),
+        }
+    }
+
+    pub fn read(&self, var: Value) -> Result<Type, VariableError> {
+        match var {
+            Value::Literal(lit) => {
+                Ok(Type::Variable(Pointer::Literal(lit)))
+            }
+            Value::Identifier(identifier) => {
+                self.read_identifier(identifier)
+            }
+        }
+    }
+
+    pub fn write(&mut self, var: Value) -> Result<Type, VariableError> {
+        match var {
+            Value::Literal(lit) => {
+                Ok(Type::Variable(Pointer::Literal(lit)))
+            }
+            Value::Identifier(identifier) => {
+                self.write_identifier(identifier)
+            }
         }
     }
 
@@ -252,11 +273,46 @@ impl VariableDictionary<'_> {
             self.add_argument(arg).unwrap();
         }
     }
+
+    pub fn show_allocation(&self) {
+        let mut memory = vec!["".to_string(); self.cell_counter];
+        for (name, var) in &self.variables {
+            match var.cell {
+                Pointer::Cell(cell) => {
+                    memory[cell] = format!("var {}", name);
+                }
+                Pointer::IndirectCell(cell) => {
+                    memory[cell] = format!("var arg {}", name);
+                }
+                Pointer::Literal(_) => {
+                    panic!("Literal in variable");
+                }
+            }
+        }
+        for (name, arr) in &self.arrays {
+            match arr.offset {
+                Pointer::Cell(_) => {
+                    panic!("Cell in array");
+                }
+                Pointer::IndirectCell(cell) => {
+                    memory[cell] = format!("arr arg {}", name);
+                }
+                Pointer::Literal(offset) => {
+                    let start = arr.start;
+                    for i in start..(start+arr.length as i64) {
+                        memory[(offset + i) as usize] = format!("arr {}", name);
+                    }
+                }
+            }
+        }
+        for m in memory {
+            println!("{}", m);
+        }
+    }
 }
 #[test]
 pub fn test1() {
-    let lit = ConstantsHandler::new(1);
-    let mut dict = VariableDictionary::new(1, &lit);
+    let mut dict = VariableDictionary::new(1);
     dict.add(Declaration::VariableDecl("a".to_string()))
         .unwrap();
     dict.add(Declaration::VariableDecl("b".to_string()))
@@ -265,23 +321,28 @@ pub fn test1() {
         .unwrap();
     dict.add(Declaration::ArrayDecl("d".to_string(), -10, 10))
         .unwrap();
+    dict.add_argument(ArgumentDecl::VariableArg("f".to_string())).unwrap();
+    dict.add_argument(ArgumentDecl::ArrayArg("g".to_string())).unwrap();
     println!("{:?}", dict);
-    let res = dict.pointer(Identifier::Variable("a".to_string())).unwrap();
-    println!("{:?}", res);
-    let res = dict
-        .pointer(Identifier::ArrayLit("c".to_string(), 1))
-        .unwrap();
-    println!("{:?}", res);
-    let res = dict
-        .pointer(Identifier::ArrayLit("d".to_string(), -10))
-        .unwrap();
-    println!("{:?}", res);
-    let res = dict
-        .pointer(Identifier::ArrayVar("c".to_string(), "b".to_string()))
-        .unwrap();
-    println!("{:?}", res);
-    let res = dict
-        .pointer(Identifier::ArrayVar("d".to_string(), "a".to_string()))
-        .unwrap();
-    println!("{:?}", res);
+
+    // let res = dict.pointer(Identifier::Variable("a".to_string())).unwrap();
+    // println!("{:?}", res);
+    // let res = dict
+    //     .pointer(Identifier::ArrayLit("c".to_string(), 1))
+    //     .unwrap();
+    // println!("{:?}", res);
+    // let res = dict
+    //     .pointer(Identifier::ArrayLit("d".to_string(), -10))
+    //     .unwrap();
+    // println!("{:?}", res);
+    // let res = dict
+    //     .pointer(Identifier::ArrayVar("c".to_string(), "b".to_string()))
+    //     .unwrap();
+    // println!("{:?}", res);
+    // let res = dict
+    //     .pointer(Identifier::ArrayVar("d".to_string(), "a".to_string()))
+    //     .unwrap();
+    // println!("{:?}", res);
+
+    dict.show_allocation()
 }
