@@ -8,6 +8,7 @@ mod intermediate;
 
 use std::str::FromStr;
 use lalrpop_util::lalrpop_mod;
+use crate::intermediate::IntermediateProgram;
 use crate::preprocessor::Preprocessor;
 
 lalrpop_mod!(
@@ -20,12 +21,25 @@ lalrpop_mod!(
 
 fn main() {
     let parser = grammar::program_allParser::new();
-    let file = std::fs::read_to_string("program2.imp").unwrap();
+    let file = std::fs::read_to_string("myprogram.imp").unwrap();
     let mut ret = parser.parse(&file).unwrap();
+    println!("{:?}", ret);
     let mut pre = Preprocessor::new();
     pre.process_program(&mut ret).unwrap();
-    i64::from_str("123").unwrap();
-    println!("{:?}", ret);
-    println!("{:?}", pre);
+    // println!("{:?}", pre);
+    let mut translator = IntermediateProgram::new();
+    translator.translate_program(ret).expect("TODO: panic message");
+    translator.print();
 
+
+
+}
+
+#[test]
+fn test(){
+    let num = -15;
+    let val = num >> 1;
+    println!("{} ", val);
+    let res = (val << 1)-num;
+    println!("{}", res);
 }

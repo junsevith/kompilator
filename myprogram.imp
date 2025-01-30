@@ -1,0 +1,9 @@
+# Binarna postać liczby
+PROGRAM IS
+	n, p
+BEGIN
+    READ n;
+    p:=n*2;
+    p:=p+10;
+    WRITE p;
+END

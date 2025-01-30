@@ -1,5 +1,5 @@
 use std::collections::HashMap;
-use crate::structure::{Command, Identifier, Operation, Operator, Value};
+use crate::structure::{Command, Identifier, Operation, Operator, Program, Value};
 use crate::structure::Declaration::{ArrayDecl, VariableDecl};
 use crate::variables::{Pointer, Type, VariableDictionary, VariableError};
 
@@ -24,7 +24,7 @@ pub enum Instruction {
 pub struct IntermediateProgram {
     literals: HashMap<i64, usize>,
     labels: Vec<String>,
-    instructions: Vec<(Instruction, String)>,
+    pub(crate) instructions: Vec<(Instruction, String)>,
     action_stack: Vec<String>,
 }
 
@@ -45,7 +45,18 @@ impl IntermediateProgram {
     }
 
     pub fn push(&mut self, instruction: Instruction) {
-        self.instructions.push((instruction, self.action_stack.last().unwrap().clone()));
+        self.instructions.push((instruction, self.action_stack.join(" ")));
+    }
+
+    pub(crate) fn translate_program(&mut self, commands: Program) -> Result<(), TranslationError> {
+        let mut variables = VariableDictionary::new(10);
+        for declaration in commands.declarations {
+            variables.add(declaration).map_err(|error| { TranslationError::VariableError(error) })?;
+        }
+        for command in commands.commands {
+            self.translate_command(command, &mut variables)?;
+        }
+        Ok(())
     }
 
     fn translate_command(&mut self, command: Command, variables: &mut VariableDictionary) -> Result<(), TranslationError> {
@@ -60,8 +71,16 @@ impl IntermediateProgram {
             Command::For(_, _, _, _) => {}
             Command::ForDown(_, _, _, _) => {}
             Command::FunctionCall(_, _) => {}
-            Command::Read(_) => {}
-            Command::Write(_) => {}
+            Command::Read(id) => {
+                self.action_stack.push("Read".to_string());
+                self.read(variables.write_(Value::Identifier(id))?);
+                self.action_stack.pop();
+            }
+            Command::Write(value) => {
+                self.action_stack.push("Write".to_string());
+                self.write(variables.read_(value)?);
+                self.action_stack.pop();
+            }
         }
         Ok(())
     }
@@ -99,20 +118,14 @@ impl IntermediateProgram {
 
                 self.action_stack.pop();
             }
-            Operator::Multiply => {}
+            Operator::Multiply => {
+
+
+            }
             Operator::Divide => {
                 self.action_stack.push("Division".to_string());
 
-                match &operation.right {
-                    Value::Literal(2) => {
-                        let first = variables.read_(operation.left)?;
-                        self.load(first);
-                        self.push(Instruction::Half);
-                    }
-                    _ => {
-                        panic!("TODO")
-                    }
-                }
+
 
                 self.action_stack.pop();
             }
@@ -200,7 +213,7 @@ impl IntermediateProgram {
         }
     }
 
-    fn print(&self) {
+    pub fn print(&self) {
         for (instruction, comment) in &self.instructions {
             println!("{:?} #{}", instruction, comment);
         }
@@ -217,6 +230,48 @@ impl IntermediateProgram {
         self.push(Instruction::Store(Pointer::Cell(2)));
         self.push(Instruction::Subtract(Pointer::Cell(2)));
         self.push(Instruction::Subtract(Pointer::Cell(2)));
+    }
+
+    fn write(&mut self, value: Type) {
+        match value {
+            Type::Variable(Pointer::Cell(_)) |
+            Type::Variable(Pointer::Literal(_)) => {
+                match value {
+                    Type::Variable(pointer) => {
+                        self.push(Instruction::Put(pointer));
+                    }
+                    _ => {
+                        panic!("Error in write")
+                    }
+                }
+
+            }
+            _ => {
+                self.load(value);
+                self.push(Instruction::Put(Pointer::Cell(0)));
+            }
+        }
+    }
+
+    fn read(&mut self, value: Type) {
+        match value {
+            Type::Variable(Pointer::Cell(_)) |
+            Type::Variable(Pointer::Literal(_)) => {
+                match value {
+                    Type::Variable(pointer) => {
+                        self.push(Instruction::Get(pointer));
+                    }
+                    _ => {
+                        panic!("Error in read")
+                    }
+                }
+
+            }
+            _ => {
+                self.load(value);
+                self.push(Instruction::Get(Pointer::Cell(0)));
+            }
+        }
     }
 }
 
