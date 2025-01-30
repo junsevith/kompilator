@@ -21,6 +21,7 @@ impl Preprocessor {
         };
         new.function_counter.insert("@multiply".to_string(), 0);
         new.function_counter.insert("@divide".to_string(), 0);
+        new.function_counter.insert("@modulo".to_string(), 0);
         new.function_counter.insert("@shift_left".to_string(), 0);
         new.function_counter.insert("@shift_right".to_string(), 0);
 
@@ -70,6 +71,7 @@ impl Preprocessor {
                 }
                 Command::For(iterator, start, end, commands) | Command::ForDown(iterator, start, end, commands) => {
                     self.found_iterators.push(iterator.clone());
+                    self.found_iterators.push(format!("{}_end", iterator));
                     self.process_commands(commands, true)?;
                     self.process_value(start);
                     self.process_value(end);
@@ -148,6 +150,9 @@ impl Preprocessor {
             }
             (_,_,Operator::Divide) => {
                 self.add_function_use("@divide")?;
+            }
+            (_,_,Operator::Modulo) => {
+                self.add_function_use("@modulo")?;
             }
             _ => {}
         }

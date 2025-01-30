@@ -27,9 +27,9 @@ fn main() {
     let mut pre = Preprocessor::new();
     pre.process_program(&mut ret).unwrap();
     // println!("{:?}", pre);
-    let mut translator = IntermediateProgram::new();
-    translator.translate_program(ret).expect("TODO: panic message");
-    translator.print();
+    // let mut intermediate = IntermediateProgram::new("main".to_string());
+    // intermediate.translate_program(ret).expect("TODO: panic message");
+    // intermediate.print();
 
 
 
