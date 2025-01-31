@@ -5,10 +5,11 @@ mod procedures;
 mod constants;
 mod preprocessor;
 mod intermediate;
+mod program_translator;
 
 use std::str::FromStr;
 use lalrpop_util::lalrpop_mod;
-use crate::intermediate::IntermediateProgram;
+use crate::intermediate::CommandTranslator;
 use crate::preprocessor::Preprocessor;
 
 lalrpop_mod!(
@@ -21,15 +22,12 @@ lalrpop_mod!(
 
 fn main() {
     let parser = grammar::program_allParser::new();
-    let file = std::fs::read_to_string("myprogram.imp").unwrap();
+    let file = std::fs::read_to_string("program0.imp").unwrap();
     let mut ret = parser.parse(&file).unwrap();
     println!("{:?}", ret);
-    let mut pre = Preprocessor::new();
-    pre.process_program(&mut ret).unwrap();
-    // println!("{:?}", pre);
-    // let mut intermediate = IntermediateProgram::new("main".to_string());
-    // intermediate.translate_program(ret).expect("TODO: panic message");
-    // intermediate.print();
+    let mut translator = program_translator::Translator::new();
+    translator.translate(ret);
+    translator.program.print()
 
 
 

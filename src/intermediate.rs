@@ -1,8 +1,11 @@
 use crate::procedures::{FunctionRepository, ProcedureHandler};
 use crate::structure::Declaration::{ArrayDecl, VariableDecl};
-use crate::structure::{Command, Condition, Identifier, Operation, Operator, Program, Value};
+use crate::structure::{Command, Condition, Identifier, Operation, Operator, Value};
 use crate::variables::{Pointer, Type, VariableDictionary, VariableError};
 use std::collections::HashMap;
+
+type IntermediateProgram = Vec<(Instruction, String)>;
+type LabelMap = HashMap<String, usize>;
 
 #[derive(Debug)]
 pub enum Instruction {
@@ -25,13 +28,14 @@ pub enum Instruction {
     LoadCurrentLocation,
     Halt,
 }
-pub struct IntermediateProgram {
-    literals: HashMap<i64, usize>,
-    pub instructions: Vec<(Instruction, String)>,
-    pub labels: HashMap<String, usize>,
+pub struct CommandTranslator {
+    pub literal_counter: HashMap<i64, usize>,
+    pub instructions: IntermediateProgram,
+    pub labels: LabelMap,
     label_counter: usize,
     new_label: Option<String>,
     action_stack: Vec<String>,
+    instruction_start: usize,
 }
 
 #[derive(Debug)]
@@ -40,27 +44,28 @@ pub enum TranslationError {
     NegativeShift(String),
 }
 
-impl IntermediateProgram {
-    pub fn new(name: String) -> Self {
-        IntermediateProgram {
-            literals: HashMap::new(),
+impl CommandTranslator {
+    pub fn new(name: String, instruction_start: usize) -> Self {
+        CommandTranslator {
+            literal_counter: HashMap::new(),
             labels: HashMap::new(),
             label_counter: 0,
             instructions: Vec::new(),
             action_stack: vec![name],
             new_label: None,
+            instruction_start,
         }
     }
 
     pub fn push(&mut self, instruction: Instruction) {
         let mut comment = self.action_stack.join(" ");
         if let Some(label) = self.new_label.take() {
-            comment = format!("{} @[{}]", comment, label);
+            comment = format!("{} @[ {} ]", comment, label);
         }
         self.instructions.push((instruction, comment));
     }
 
-    fn translate_commands(
+    pub fn translate_commands(
         &mut self,
         commands: Vec<Command>,
         variables: &mut VariableDictionary,
@@ -72,7 +77,7 @@ impl IntermediateProgram {
         Ok(())
     }
 
-    fn translate_command(
+    pub(crate) fn translate_command(
         &mut self,
         command: Command,
         variables: &mut VariableDictionary,
@@ -241,9 +246,15 @@ impl IntermediateProgram {
             Operator::Multiply => {
                 self.action_stack.push("Multiplication".to_string());
 
-                panic!("TODO load vars");
+                let first_type = variables.read_(operation.left)?;
+                let second_type = variables.read_(operation.right)?;
 
-                functions
+                self.load(first_type);
+                self.push(Instruction::Store(Pointer::Cell(2)));
+                self.load(second_type);
+                self.push(Instruction::Store(Pointer::Cell(3)));
+
+                let res = functions
                     .get_mut("@multiply")
                     .unwrap()
                     .call(vec![], variables);
@@ -253,7 +264,13 @@ impl IntermediateProgram {
             Operator::Divide => {
                 self.action_stack.push("Division".to_string());
 
-                panic!("TODO load vars");
+                let first_type = variables.read_(operation.left)?;
+                let second_type = variables.read_(operation.right)?;
+
+                self.load(first_type);
+                self.push(Instruction::Store(Pointer::Cell(2)));
+                self.load(second_type);
+                self.push(Instruction::Store(Pointer::Cell(3)));
 
                 functions
                     .get_mut("@divide")
@@ -273,7 +290,13 @@ impl IntermediateProgram {
                         self.neg()
                     }
                     _ => {
-                        panic!("TODO load vars");
+                        let first_type = variables.read_(operation.left)?;
+                        let second_type = variables.read_(operation.right)?;
+
+                        self.load(first_type);
+                        self.push(Instruction::Store(Pointer::Cell(2)));
+                        self.load(second_type);
+                        self.push(Instruction::Store(Pointer::Cell(3)));
 
                         functions
                             .get_mut("@modulo")
@@ -401,7 +424,7 @@ impl IntermediateProgram {
         }
     }
 
-    fn reserve_label(&mut self, name: &str) -> String {
+    pub fn reserve_label(&mut self, name: &str) -> String {
         let label = format!(
             "{} {} {}",
             self.action_stack.first().unwrap(),
@@ -412,23 +435,42 @@ impl IntermediateProgram {
         label
     }
 
-    fn set_label(&mut self, label: String) -> String {
+    pub fn set_label(&mut self, label: String) -> String {
         self.labels.insert(
             label.clone(),
-            self.instructions.len(),
+            self.instructions.len() + self.instruction_start,
         );
         match &mut self.new_label {
             None => {
                 self.new_label = Some(label.clone());
             }
-            Some(label) => {
-                *label = label.clone() + " | " + &label;
+            Some(old) => {
+                *old = old.clone() + " | " + &label;
             }
         }
         label
     }
 
     fn handle_condition(&mut self, condition: Condition, variables: &mut VariableDictionary, label: &String, when_jump: bool) {
+        //We jump when false
+        // panic!("TODO");
+        self.push(Instruction::Goto("Not implemented".to_string()));
+    }
+
+    pub fn where_we_finished(&self) -> usize {
+        self.instructions.len() + self.instruction_start
+    }
+
+    pub fn merge(&mut self, mut other: CommandTranslator) {
+        if self.instructions.len() != other.instruction_start {
+            panic!("Error in merging");
+        }
+        self.instructions.append(&mut other.instructions);
+        self.labels.extend(other.labels);
+        other.literal_counter.into_iter().for_each(|(key, value)| {
+            let entry = self.literal_counter.entry(key).or_insert(0);
+            *entry += value;
+        });
 
     }
 }
@@ -455,7 +497,7 @@ fn test() {
         left: Value::Identifier(Identifier::Variable("a".to_string())),
         right: Value::Literal(1),
     };
-    let mut program = IntermediateProgram::new("Test1".to_string());
+    let mut program = CommandTranslator::new("Test1".to_string(), 0);
     program
         .translate_assign(
             Identifier::Variable("a".to_string()),
@@ -480,7 +522,7 @@ fn test2() {
         left: Value::Literal(1),
         right: Value::Identifier(Identifier::ArrayVar("c".to_string(), "b".to_string())),
     };
-    let mut program = IntermediateProgram::new("Test2".to_string());
+    let mut program = CommandTranslator::new("Test2".to_string(), 0);
     program
         .translate_assign(
             Identifier::Variable("a".to_string()),
@@ -507,7 +549,7 @@ fn test3() {
         left: Value::Identifier(Identifier::Variable("b".to_string())),
         right: Value::Literal(2),
     };
-    let mut program = IntermediateProgram::new("Test3".to_string());
+    let mut program = CommandTranslator::new("Test3".to_string(), 0);
     program
         .translate_assign(
             Identifier::Variable("a".to_string()),
@@ -517,7 +559,10 @@ fn test3() {
         )
         .unwrap();
     program.set_label("end".to_string());
+    program.set_label("dupa".to_string());
     program.push(Instruction::Halt);
 
     program.print();
+
+    println!("{:?}", program.labels);
 }

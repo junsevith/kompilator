@@ -12,13 +12,13 @@ pub struct Procedure {
     pub(crate) commands: Vec<Command>,
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub enum ArgumentDecl {
     VariableArg(String),
     ArrayArg(String),
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub enum Declaration {
     VariableDecl(String),
     ArrayDecl(String, i64, i64),

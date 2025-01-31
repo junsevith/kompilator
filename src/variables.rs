@@ -33,6 +33,16 @@ pub enum Pointer {
     Literal(i64)
 }
 
+impl Pointer {
+    pub fn location(&self) -> Pointer {
+        match self {
+            Pointer::Cell(cell) => Pointer::Literal(*cell as i64),
+            Pointer::IndirectCell(cell) => Pointer::Cell(*cell),
+            Pointer::Literal(val) => Pointer::Literal(*val),
+        }
+    }
+}
+
 pub enum VariableError {
     ArrayCollision(String),
     VariableCollision(String),
@@ -308,6 +318,11 @@ impl VariableDictionary {
         for m in memory {
             println!("{}", m);
         }
+    }
+
+
+    pub fn where_we_finished(&self) -> usize {
+        self.cell_counter
     }
 }
 #[test]
