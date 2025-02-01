@@ -200,6 +200,7 @@ impl CommandTranslator {
             panic!("Error in merging");
         }
         self.instructions.append(&mut other.instructions);
+        self.next_labels.append(&mut other.next_labels);
     }
 }
 

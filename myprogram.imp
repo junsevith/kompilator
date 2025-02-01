@@ -1,9 +1,15 @@
 # Binarna postać liczby
+PROCEDURE last(a) IS
+  x
+BEGIN
+  WRITE a;
+END
+
 PROGRAM IS
 	n, p
 BEGIN
     READ n;
-    p:=n*2;
-    p:=p+10;
-    WRITE p;
+    last(n);
+    last(n);
+
 END

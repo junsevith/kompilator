@@ -19,12 +19,13 @@ lalrpop_mod!(
 
 fn main() {
     let parser = grammar::program_allParser::new();
-    let file = std::fs::read_to_string("program0.imp").unwrap();
+    let file = std::fs::read_to_string("program2.imp").unwrap();
     let mut ret = parser.parse(&file).unwrap();
     // println!("{:?}", ret);
     let mut translator = program_translator::Translator::new();
     translator.translate(ret).unwrap();
-    // translator.program.print()
+    println!("Optimized Program:");
+    translator.program.print();
     let code = translator.to_code();
     fs::write("output.mr", code).unwrap();
     // println!("{}", code);

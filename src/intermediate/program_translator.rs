@@ -54,6 +54,8 @@ impl Translator {
 
         self.program.push(Instruction::Halt);
 
+        self.program.print();
+
         self.process_code(&mut variables, main, literals)?;
         Ok(())
     }

@@ -156,9 +156,10 @@ impl Translator {
                 | Instruction::GoZero(label) => {}
 
                 Instruction::LoadCurrentLocation => {
+                    let val = num as i64 + 3;
                     *comment += " LoadCurrentLocation";
-                    *instruction = Instruction::Load(Pointer::Literal(num as i64));
-                    let entry = literals_map.entry(num as i64).or_insert(0usize);
+                    *instruction = Instruction::Load(Pointer::Literal(val));
+                    let entry = literals_map.entry(val).or_insert(0usize);
                     *entry += 1;
                 }
                 Instruction::Halt => {}

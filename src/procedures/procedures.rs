@@ -11,7 +11,7 @@ pub type FunctionRepository = HashMap<String, Box<dyn ProcedureHandler>>;
 pub fn new_function_repository() -> FunctionRepository {
     let mut new = FunctionRepository::new();
     new.insert(
-        "@multiplication".to_string(),
+        "@multiply".to_string(),
         Box::new(MultiplicationProcedure),
     );
     new.insert("@division".to_string(), Box::new(DivisionProcedure));
@@ -118,10 +118,7 @@ impl ProcedureHandler for RegularProcedure {
                 let ret = self_dictionary.write(Value::Identifier(Identifier::Variable(format!("@{}_return", self.name)))).map_err(|e| TranslationError::VariableError(e))?;
                 let ret = instructions.prepare_pointer(ret, 2);
 
-                instructions.action_stack.push("set return".to_string());
-                instructions.push(Instruction::LoadCurrentLocation);
-                instructions.push(Instruction::Store(ret));
-                instructions.action_stack.pop();
+
 
                 for (provided, declared) in arguments.iter().zip(self.arguments.iter()) {
                     match declared {
@@ -140,6 +137,13 @@ impl ProcedureHandler for RegularProcedure {
                         ArgumentDecl::ArrayArg(name) => {}
                     }
                 }
+
+                instructions.action_stack.push("set return".to_string());
+                instructions.push(Instruction::LoadCurrentLocation);
+                instructions.push(Instruction::Store(ret));
+                instructions.action_stack.pop();
+
+                instructions.push(Instruction::Goto(format!("{}_start", self.name)));
 
             }
             true => {}

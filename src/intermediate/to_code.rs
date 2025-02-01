@@ -35,7 +35,7 @@ impl Translator {
                     panic!("Instruction {:?} not allowed", instruction);
                 }
             };
-            code.push_str(format!("{}\n", instr).as_str());
+            code.push_str(format!("{:<10} #{} @{:?}\n", instr, comment, labels).as_str());
         }
         code
     }
