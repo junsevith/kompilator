@@ -1,0 +1,65 @@
+# 2 - licznik zmienny / reszta
+# 3 - mianownik zmienny
+# 4 - wynik
+# 5 - potęga 2
+# 6 - zapis licznika
+# 7 - zapis mianownika
+
+SUB 0
+STORE 4         #inicjalizujemy wynik
+GET 0           #ładujemy licznik
+JZERO 47        #jeśli licznik = 0 to @koniec
+STORE 6
+JPOS 3          #jeśli licznik ujemny to odwracamy znak
+SUB 0
+SUB 6
+STORE 2
+
+GET 0           #load mianownik
+JZERO 2         #jeśli mianownik = 0 to inicjalizujemy wynik i reszte na 0
+JUMP 4
+SUB 0
+STORE 2
+JUMP 36         #@koniec
+STORE 7
+JPOS 3          #jeśli mianownik ujemny to odwracamy znak
+SUB 0
+SUB 7
+STORE 3
+
+SUB 2           #mianownik > licznik to koniec
+JPOS 29         #@koniec
+
+SET 1           #inicjalizujemy potęgę 2
+STORE 5
+
+LOAD 3          #shift loop
+ADD 0
+SUB 2
+JPOS 7          #jeśli mianownik > licznik to kończymy shift
+ADD 2
+STORE 3
+LOAD 5
+ADD 5
+STORE 5
+JUMP -9
+
+LOAD 2          #division loop
+JZERO 15        #jeśli licznik = 0 to @koniec
+SUB 3
+JNEG 5          #jeśli licznik negatywny to przechodzimy do następnej iteracji
+STORE 2
+LOAD 4
+ADD 5
+STORE 4
+LOAD 5
+HALF
+JZERO 6     #jeśli potęga 2 = 0 to koniec @koniec
+STORE 5
+LOAD 3
+HALF
+STORE 3
+JUMP -16
+PUT 4           #wynik div_end
+PUT 2           #reszta
+HALT

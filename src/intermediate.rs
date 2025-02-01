@@ -1,8 +1,9 @@
-use crate::procedures::{FunctionRepository, ProcedureHandler};
+
 use crate::structure::Declaration::{ArrayDecl, VariableDecl};
 use crate::structure::{Command, Condition, Identifier, Operation, Operator, Value};
 use crate::variables::{Pointer, Type, VariableDictionary, VariableError};
 use std::collections::HashMap;
+use crate::procedures::procedures::FunctionRepository;
 
 type IntermediateProgram = Vec<(Instruction, String)>;
 type LabelMap = HashMap<String, usize>;
@@ -152,6 +153,7 @@ impl CommandTranslator {
                 let start_label = self.reserve_label("for start");
                 self.set_label(start_label.clone());
                 self.translate_commands(commands, variables, functions)?;
+
                 self.load(iter_type);
                 self.push(Instruction::Add(Pointer::Literal(1)));
                 self.push(Instruction::Store(iter_ptr));
@@ -471,7 +473,6 @@ impl CommandTranslator {
             let entry = self.literal_counter.entry(key).or_insert(0);
             *entry += value;
         });
-
     }
 }
 

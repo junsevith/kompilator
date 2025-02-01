@@ -1,0 +1,37 @@
+# w komórce 2 mamy liczbe pierwsza
+# w komórce 3 mamy liczbe druga mniejszą
+# w komórce 4 mamy wynik
+
+
+@label start
+# ustawiamy 4 na zero
+SUB 0
+STORE 4
+
+@label loop
+# sprawdzamy pierwszy bit
+LOAD 3
+HALF
+ADD 0
+SUB 3
+# jeśli jeden to w p0 mamy -1 wpp 0
+JZERO 4 @after
+# dodajemy liczbe 2 do wyniku
+LOAD 4
+ADD 2
+STORE 4
+@after
+# Bitowo przesuwamy liczbe 3
+LOAD 3
+HALF 
+JZERO @end
+STORE 3
+# Bitowo przesuwamy liczbe 2
+LOAD 2
+ADD 2
+STORE 2
+JUMP @loop
+@end
+LOAD 4
+
+RETURN 5
