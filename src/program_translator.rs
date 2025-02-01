@@ -1,10 +1,9 @@
-use std::collections::HashMap;
-use crate::intermediate::{Instruction, CommandTranslator};
+use crate::intermediate::{CommandTranslator, Instruction};
 use crate::preprocessor::Preprocessor;
-use crate::procedures::{FunctionRepository, ProcedureHandler, RegularProcedure};
+use crate::procedures::procedures::{FunctionRepository, ProcedureHandler, RegularProcedure};
 use crate::structure::{Procedure, Program};
-use crate::variables::Pointer::Literal;
-use crate::variables::{Pointer, VariableDictionary};
+use crate::variables::VariableDictionary;
+use std::collections::HashMap;
 
 pub struct Translator {
     pub(crate) program: CommandTranslator,

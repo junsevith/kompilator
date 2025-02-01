@@ -7,8 +7,9 @@
 
 SUB 0
 STORE 4         #inicjalizujemy wynik
+
 GET 0           #ładujemy licznik
-JZERO 47        #jeśli licznik = 0 to @koniec
+JZERO 66        #jeśli licznik = 0 to @koniec
 STORE 6
 JPOS 3          #jeśli licznik ujemny to odwracamy znak
 SUB 0
@@ -20,7 +21,7 @@ JZERO 2         #jeśli mianownik = 0 to inicjalizujemy wynik i reszte na 0
 JUMP 4
 SUB 0
 STORE 2
-JUMP 36         #@koniec
+JUMP 55         #@koniec
 STORE 7
 JPOS 3          #jeśli mianownik ujemny to odwracamy znak
 SUB 0
@@ -54,12 +55,33 @@ ADD 5
 STORE 4
 LOAD 5
 HALF
-JZERO 6     #jeśli potęga 2 = 0 to koniec @koniec
+JZERO 6         #jeśli potęga 2 = 0 to koniec @koniec
 STORE 5
 LOAD 3
 HALF
 STORE 3
 JUMP -16
+
+LOAD 6
+JPOS 7
+SUB 0
+SUB 2
+STORE 2
+LOAD 7
+JPOS 4          #do fikumiku
+JUMP 12         #do koinec
+LOAD 7
+JPOS 10         #do koniec
+SET 1           #fikumiku
+ADD 4
+STORE 4
+SUB 0
+SUB 4
+STORE 4
+LOAD 2
+ADD 7
+STORE 2
+
 PUT 4           #wynik div_end
 PUT 2           #reszta
 HALT
