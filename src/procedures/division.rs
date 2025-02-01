@@ -23,7 +23,8 @@ impl ProcedureHandler for DivisionProcedure {
         &mut self,
         arguments: Vec<String>,
         variable_dictionary: &mut crate::variables::VariableDictionary,
-    ) -> Result<CommandTranslator, TranslationError>{
+        instructions: &mut CommandTranslator,
+    ) -> Result<(), TranslationError>{
         unimplemented!()
     }
 }

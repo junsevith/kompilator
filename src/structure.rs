@@ -1,4 +1,4 @@
-use std::fmt::{Debug, Formatter};
+use std::fmt::{Debug, Display, Formatter};
 
 pub struct Program {
     pub procedures: Vec<Procedure>,
@@ -200,5 +200,64 @@ impl Debug for Procedure {
         write!(f, "End procedure\n")?;
 
         Ok(())
+    }
+}
+
+impl Display for Operation {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{} {} {}", self.left, self.operator, self.right)
+    }
+}
+
+impl Display for Operator {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Operator::Add => write!(f, "+"),
+            Operator::Subtract => write!(f, "-"),
+            Operator::Multiply => write!(f, "*"),
+            Operator::Divide => write!(f, "/"),
+            Operator::Modulo => write!(f, "%"),
+            Operator::Value => write!(f, "Value"),
+            Operator::ShiftLeft => write!(f, "<<"),
+            Operator::ShiftRight => write!(f, ">>"),
+        }
+    }
+}
+
+impl Display for Condition {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{} {} {}", self.left, self.operator, self.right)
+    }
+}
+
+impl Display for ConditionOperator {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        match self {
+            ConditionOperator::Equal => write!(f, "=="),
+            ConditionOperator::NotEqual => write!(f, "!="),
+            ConditionOperator::Lesser => write!(f, "<"),
+            ConditionOperator::Greater => write!(f, ">"),
+            ConditionOperator::LesserEqual => write!(f, "<="),
+            ConditionOperator::GreaterEqual => write!(f, ">="),
+        }
+    }
+}
+
+impl Display for Value {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Value::Literal(val) => {
+                write!(f, "lit_{}", val)
+            }
+            Value::Identifier(Identifier::Variable(name)) => {
+                write!(f, "var_{}", name)
+            }
+            Value::Identifier(Identifier::ArrayLit(name, index)) => {
+                write!(f, "arr_{}[lit {}]", name, index)
+            }
+            Value::Identifier(Identifier::ArrayVar(name, var)) => {
+                write!(f, "arr_{}[var {}]", name, var)
+            }
+        }
     }
 }

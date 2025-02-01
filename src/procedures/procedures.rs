@@ -29,7 +29,8 @@ pub trait ProcedureHandler {
         &mut self,
         arguments: Vec<String>,
         variable_dictionary: &mut VariableDictionary,
-    ) -> Result<CommandTranslator, TranslationError>;
+        instructions: &mut CommandTranslator,
+    ) -> Result<(), TranslationError>;
 }
 
 pub struct RegularProcedure {
@@ -93,6 +94,10 @@ impl ProcedureHandler for RegularProcedure {
                 &mut function_repository,
             )?;
 
+        let ret = dictionary.write(Value::Identifier(Identifier::Variable(format!("@{}_return", self.name)))).map_err(|e| TranslationError::VariableError(e))?;
+        let ret = translator.prepare_pointer(ret, 2);
+        translator.push(Instruction::Return(ret));
+
         let stack = dictionary.where_we_finished();
 
         self.variable_dictionary = Some(dictionary);
@@ -104,20 +109,41 @@ impl ProcedureHandler for RegularProcedure {
         &mut self,
         arguments: Vec<String>,
         variable_dictionary: &mut VariableDictionary,
-    ) -> Result<CommandTranslator, TranslationError> {
-        let mut instructions = CommandTranslator::new(format!("{}_call", self.name), 0);
+        instructions: &mut CommandTranslator,
+    ) -> Result<(), TranslationError> {
+        instructions.action_stack.push(format!("Call {}", self.name));
         match self.inline {
             false => {
                 let self_dictionary = self.variable_dictionary.as_mut().unwrap();
                 let ret = self_dictionary.write(Value::Identifier(Identifier::Variable(format!("@{}_return", self.name)))).map_err(|e| TranslationError::VariableError(e))?;
                 let ret = instructions.prepare_pointer(ret, 2);
 
+                instructions.action_stack.push("set return".to_string());
                 instructions.push(Instruction::LoadCurrentLocation);
-                instructions.push(Instruction::Store(ret))
+                instructions.push(Instruction::Store(ret));
+                instructions.action_stack.pop();
+
+                for (provided, declared) in arguments.iter().zip(self.arguments.iter()) {
+                    match declared {
+                        ArgumentDecl::VariableArg(name) => {
+                            instructions.action_stack.push(format!("var_{} -> arg_{}", provided, name));
+                            let value = variable_dictionary.write(Value::Identifier(Identifier::Variable(provided.clone()))).map_err(|e| TranslationError::VariableError(e))?;
+                            let value = instructions.prepare_pointer(value, 2);
+
+                            let place = self_dictionary.write(Value::Identifier(Identifier::Variable(name.clone()))).map_err(|e| TranslationError::VariableError(e))?;
+                            let place = instructions.prepare_pointer(place, 3);
+
+                            instructions.push(Instruction::Load(value.location()));
+                            instructions.push(Instruction::Store(place.location()));
+                            instructions.action_stack.pop();
+                        }
+                        ArgumentDecl::ArrayArg(name) => {}
+                    }
+                }
 
             }
             true => {}
         }
-        Ok(instructions)
+        Ok(())
     }
 }

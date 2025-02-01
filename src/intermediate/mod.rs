@@ -2,6 +2,8 @@ mod assign;
 mod command;
 pub mod program_translator;
 mod condition;
+mod scanner;
+mod to_code;
 
 use crate::structure::Declaration::{ArrayDecl, VariableDecl};
 use crate::structure::{Command, Condition, Identifier, Operation, Operator, Value};
@@ -34,6 +36,7 @@ pub enum Instruction {
     Add(Pointer),
     Subtr(Pointer),
     Half,
+    Set(i64),
     Jump(i64),
     Jpos(i64),
     Jzero(i64),
@@ -50,7 +53,7 @@ pub struct CommandTranslator {
     pub instructions: Vec<InstructionLine>,
     label_counter: usize,
     next_labels: Vec<String>,
-    action_stack: Vec<String>,
+    pub(crate) action_stack: Vec<String>,
     instruction_start: usize,
 }
 
@@ -193,7 +196,7 @@ impl CommandTranslator {
     }
 
     pub fn merge(&mut self, mut other: CommandTranslator) {
-        if self.instructions.len() != other.instruction_start {
+        if self.where_we_finished() != other.instruction_start {
             panic!("Error in merging");
         }
         self.instructions.append(&mut other.instructions);

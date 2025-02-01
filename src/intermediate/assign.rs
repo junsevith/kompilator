@@ -14,10 +14,9 @@ impl CommandTranslator {
         let destination = variables.write_(Value::Identifier(variable))?;
         let destination = self.prepare_pointer(destination, 1);
 
+        self.action_stack.push(format!("{}", operation));
         match &operation.operator {
             Operator::Add => {
-                self.action_stack.push("Addition".to_string());
-
                 let first = variables.read_(operation.left)?;
 
                 let second = variables.read_(operation.right)?;
@@ -27,8 +26,6 @@ impl CommandTranslator {
                 self.push(Instruction::Add(second));
             }
             Operator::Subtract => {
-                self.action_stack.push("Subtraction".to_string());
-
                 let first = variables.read_(operation.left)?;
 
                 let second = variables.read_(operation.right)?;
@@ -38,8 +35,6 @@ impl CommandTranslator {
                 self.push(Instruction::Subtr(second));
             }
             Operator::Multiply => {
-                self.action_stack.push("Multiplication".to_string());
-
                 let first_type = variables.read_(operation.left)?;
                 let second_type = variables.read_(operation.right)?;
 
@@ -48,14 +43,14 @@ impl CommandTranslator {
                 self.load(second_type);
                 self.push(Instruction::Store(Pointer::Cell(7)));
 
-                let res = functions
-                    .get_mut("@multiply")
-                    .unwrap()
-                    .call(vec![], variables);
+                functions.get_mut("@multiply").unwrap().call(
+                    vec![],
+                    variables,
+                    self,
+                )?;
+
             }
             Operator::Divide => {
-                self.action_stack.push("Division".to_string());
-
                 let first_type = variables.read_(operation.left)?;
                 let second_type = variables.read_(operation.right)?;
 
@@ -64,16 +59,15 @@ impl CommandTranslator {
                 self.load(second_type);
                 self.push(Instruction::Store(Pointer::Cell(7)));
 
-                functions
-                    .get_mut("@divide")
-                    .unwrap()
-                    .call(vec![], variables);
+                functions.get_mut("@divide").unwrap().call(
+                    vec![],
+                    variables,
+                    self,
+                )?;
 
                 self.load(Type::Variable(Pointer::Cell(4)));
             }
             Operator::Modulo => {
-                self.action_stack.push("Modulo".to_string());
-
                 match &operation.right {
                     Value::Literal(2) => {
                         let first = variables.read_(operation.left)?;
@@ -93,7 +87,7 @@ impl CommandTranslator {
                         functions
                             .get_mut("@divide")
                             .unwrap()
-                            .call(vec![], variables);
+                            .call(vec![], variables, self)?;
 
                         self.load(Type::Variable(Pointer::Cell(2)));
                     }
@@ -104,8 +98,6 @@ impl CommandTranslator {
                 self.load(first);
             }
             Operator::ShiftLeft => {
-                self.action_stack.push("Shift Left".to_string());
-
                 let first = variables.read_(operation.left)?;
                 let second = match variables.read_(operation.right)? {
                     Type::Variable(Pointer::Literal(x)) => x,
@@ -117,8 +109,6 @@ impl CommandTranslator {
                 }
             }
             Operator::ShiftRight => {
-                self.action_stack.push("Shift Right".to_string());
-
                 let first = variables.read_(operation.left)?;
                 let second = match variables.read_(operation.right)? {
                     Type::Variable(Pointer::Literal(x)) => x,
@@ -128,7 +118,6 @@ impl CommandTranslator {
                 for _ in 0..second {
                     self.push(Instruction::Half);
                 }
-
             }
         }
         self.action_stack.pop();

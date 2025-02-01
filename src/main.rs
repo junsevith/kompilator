@@ -5,6 +5,7 @@ mod constants;
 mod preprocessor;
 mod intermediate;
 
+use std::fs;
 use std::str::FromStr;
 use lalrpop_util::lalrpop_mod;
 use intermediate::program_translator;
@@ -20,10 +21,13 @@ fn main() {
     let parser = grammar::program_allParser::new();
     let file = std::fs::read_to_string("program0.imp").unwrap();
     let mut ret = parser.parse(&file).unwrap();
-    println!("{:?}", ret);
+    // println!("{:?}", ret);
     let mut translator = program_translator::Translator::new();
     translator.translate(ret).unwrap();
-    translator.program.print()
+    // translator.program.print()
+    let code = translator.to_code();
+    fs::write("output.mr", code).unwrap();
+    // println!("{}", code);
 
 }
 

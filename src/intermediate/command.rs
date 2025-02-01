@@ -12,7 +12,7 @@ impl CommandTranslator {
     ) -> Result<(), TranslationError> {
         match command {
             Command::Assign(variable, operation) => {
-                self.action_stack.push("Assignment".to_string());
+                self.action_stack.push(format!("Assign {} :=", Value::Identifier(variable.clone())));
                 self.translate_assign(variable, operation, variables, functions)?;
             }
             Command::If(condition, commands) => {
@@ -121,15 +121,14 @@ impl CommandTranslator {
 
             }
             Command::FunctionCall(name, arguments) => {
-                self.action_stack.push("FunctionCall".to_string());
-                panic!("TODO");
+                functions.get_mut(&name).unwrap().call(arguments, variables, self)?;
             }
             Command::Read(id) => {
-                self.action_stack.push("Read".to_string());
+                self.action_stack.push(format!("Read {}", Value::Identifier(id.clone())));
                 self.read(variables.write_(Value::Identifier(id))?);
             }
             Command::Write(value) => {
-                self.action_stack.push("Write".to_string());
+                self.action_stack.push(format!("Write {}", value));
                 self.write(variables.read_(value)?);
 
             }
