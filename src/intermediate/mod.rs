@@ -108,7 +108,7 @@ impl CommandTranslator {
         }
     }
 
-    fn prepare_pointer(&mut self, variable: Type, registry: usize) -> Pointer {
+    pub fn prepare_pointer(&mut self, variable: Type, registry: usize) -> Pointer {
         match variable {
             Type::Variable(pointer) => pointer,
             Type::Array(pointer1, pointer2) => {

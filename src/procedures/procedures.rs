@@ -1,7 +1,7 @@
 use crate::intermediate::{CommandTranslator, Instruction, TranslationError};
 use crate::procedures::division::DivisionProcedure;
 use crate::procedures::multiplication::MultiplicationProcedure;
-use crate::structure::{ArgumentDecl, Command, Declaration, Procedure};
+use crate::structure::{ArgumentDecl, Command, Declaration, Identifier, Procedure, Value};
 use crate::variables::VariableDictionary;
 use std::collections::HashMap;
 use std::mem;
@@ -85,6 +85,7 @@ impl ProcedureHandler for RegularProcedure {
             .map_err(|e| TranslationError::VariableError(e))?;
 
         let mut translator = CommandTranslator::new(self.name.clone(), instruction_start);
+        translator.set_label(format!("{}_start", self.name));
         translator
             .translate_commands(
                 mem::take(&mut self.commands),
@@ -107,7 +108,12 @@ impl ProcedureHandler for RegularProcedure {
         let mut instructions = CommandTranslator::new(format!("{}_call", self.name), 0);
         match self.inline {
             false => {
+                let self_dictionary = self.variable_dictionary.as_mut().unwrap();
+                let ret = self_dictionary.write(Value::Identifier(Identifier::Variable(format!("@{}_return", self.name)))).map_err(|e| TranslationError::VariableError(e))?;
+                let ret = instructions.prepare_pointer(ret, 2);
+
                 instructions.push(Instruction::LoadCurrentLocation);
+                instructions.push(Instruction::Store(ret))
 
             }
             true => {}
