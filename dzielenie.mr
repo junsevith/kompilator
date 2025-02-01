@@ -5,24 +5,25 @@
 # 6 - zapis licznika
 # 7 - zapis mianownika
 
+GET 6
+GET 7
+
 SUB 0
 STORE 4         #inicjalizujemy wynik
 
-GET 0           #ładujemy licznik
-JZERO 66        #jeśli licznik = 0 to @koniec
-STORE 6
+LOAD 6           #ładujemy licznik
+JZERO 64        #jeśli licznik = 0 to @koniec
 JPOS 3          #jeśli licznik ujemny to odwracamy znak
 SUB 0
 SUB 6
 STORE 2
 
-GET 0           #load mianownik
+LOAD 7           #load mianownik
 JZERO 2         #jeśli mianownik = 0 to inicjalizujemy wynik i reszte na 0
 JUMP 4
 SUB 0
 STORE 2
-JUMP 55         #@koniec
-STORE 7
+JUMP 54         #@koniec
 JPOS 3          #jeśli mianownik ujemny to odwracamy znak
 SUB 0
 SUB 7

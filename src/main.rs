@@ -1,17 +1,13 @@
 mod structure;
-mod translator;
 mod variables;
 mod procedures;
 mod constants;
 mod preprocessor;
 mod intermediate;
-mod program_translator;
 
 use std::str::FromStr;
 use lalrpop_util::lalrpop_mod;
-use crate::intermediate::CommandTranslator;
-use crate::preprocessor::Preprocessor;
-
+use intermediate::program_translator;
 lalrpop_mod!(
     #[allow(clippy::ptr_arg)]
     #[rustfmt::skip]
@@ -26,10 +22,8 @@ fn main() {
     let mut ret = parser.parse(&file).unwrap();
     println!("{:?}", ret);
     let mut translator = program_translator::Translator::new();
-    translator.translate(ret);
+    translator.translate(ret).unwrap();
     translator.program.print()
-
-
 
 }
 

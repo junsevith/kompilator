@@ -1,4 +1,6 @@
-use crate::intermediate::CommandTranslator;
+use crate::intermediate::{CommandTranslator, Instruction, TranslationError};
+use crate::procedures::division::DivisionProcedure;
+use crate::procedures::multiplication::MultiplicationProcedure;
 use crate::structure::{ArgumentDecl, Command, Declaration, Procedure};
 use crate::variables::VariableDictionary;
 use std::collections::HashMap;
@@ -6,18 +8,28 @@ use std::mem;
 
 pub type FunctionRepository = HashMap<String, Box<dyn ProcedureHandler>>;
 
+pub fn new_function_repository() -> FunctionRepository {
+    let mut new = FunctionRepository::new();
+    new.insert(
+        "@multiplication".to_string(),
+        Box::new(MultiplicationProcedure),
+    );
+    new.insert("@division".to_string(), Box::new(DivisionProcedure));
+    new
+}
+
 pub trait ProcedureHandler {
     fn initialize(
         &mut self,
         variable_stack: usize,
         instruction_start: usize,
         function_repository: &mut FunctionRepository,
-    ) -> (CommandTranslator, usize);
+    ) -> Result<(CommandTranslator, usize), TranslationError>;
     fn call(
         &mut self,
         arguments: Vec<String>,
         variable_dictionary: &mut VariableDictionary,
-    ) -> CommandTranslator;
+    ) -> Result<CommandTranslator, TranslationError>;
 }
 
 pub struct RegularProcedure {
@@ -55,22 +67,22 @@ impl ProcedureHandler for RegularProcedure {
         variable_stack: usize,
         instruction_start: usize,
         mut function_repository: &mut FunctionRepository,
-    ) -> (CommandTranslator, usize) {
+    ) -> Result<(CommandTranslator, usize), TranslationError> {
         self.inline = false;
         let mut dictionary = VariableDictionary::new(variable_stack);
         for declaration in self.variables.iter() {
             dictionary
                 .add(declaration.clone())
-                .expect("TODO: panic message");
+                .map_err(|e| TranslationError::VariableError(e))?;
         }
         for argument in &self.arguments {
             dictionary
                 .add_argument(argument.clone())
-                .expect("TODO: panic message");
+                .map_err(|e| TranslationError::VariableError(e))?;
         }
         dictionary
             .add(Declaration::VariableDecl(format!("@{}_return", self.name)))
-            .expect("TODO: panic message");
+            .map_err(|e| TranslationError::VariableError(e))?;
 
         let mut translator = CommandTranslator::new(self.name.clone(), instruction_start);
         translator
@@ -78,21 +90,28 @@ impl ProcedureHandler for RegularProcedure {
                 mem::take(&mut self.commands),
                 &mut dictionary,
                 &mut function_repository,
-            )
-            .expect("TODO: panic message");
+            )?;
 
         let stack = dictionary.where_we_finished();
 
         self.variable_dictionary = Some(dictionary);
 
-        (translator, stack)
+        Ok((translator, stack))
     }
 
     fn call(
         &mut self,
         arguments: Vec<String>,
         variable_dictionary: &mut VariableDictionary,
-    ) -> CommandTranslator {
-        todo!()
+    ) -> Result<CommandTranslator, TranslationError> {
+        let mut instructions = CommandTranslator::new(format!("{}_call", self.name), 0);
+        match self.inline {
+            false => {
+                instructions.push(Instruction::LoadCurrentLocation);
+
+            }
+            true => {}
+        }
+        Ok(instructions)
     }
 }

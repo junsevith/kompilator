@@ -1,15 +1,15 @@
 use crate::intermediate::{CommandTranslator, TranslationError};
 use crate::procedures::procedures::{FunctionRepository, ProcedureHandler};
 
-pub struct MultiplicationProcedure;
+pub struct DivisionProcedure;
 
-impl MultiplicationProcedure {
+impl DivisionProcedure {
     pub fn new() -> Self {
-        MultiplicationProcedure
+        DivisionProcedure
     }
 }
 
-impl ProcedureHandler for MultiplicationProcedure {
+impl ProcedureHandler for DivisionProcedure {
     fn initialize(
         &mut self,
         variable_stack: usize,
@@ -23,7 +23,7 @@ impl ProcedureHandler for MultiplicationProcedure {
         &mut self,
         arguments: Vec<String>,
         variable_dictionary: &mut crate::variables::VariableDictionary,
-    ) -> Result<CommandTranslator, TranslationError> {
+    ) -> Result<CommandTranslator, TranslationError>{
         unimplemented!()
     }
 }
