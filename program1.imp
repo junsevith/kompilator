@@ -20,11 +20,11 @@ PROGRAM IS
 BEGIN
   READ a;
   READ b;
-#  READ c;
-#  READ d;
+  READ c;
+  READ d;
   gcd(a,b,x);
   gcd(c,d,y);
-#  gcd(x,y,z);
-#  WRITE z;
-   WRITE x;
+  gcd(x,y,z);
+  WRITE z;
+  WRITE x;
 END

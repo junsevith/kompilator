@@ -1,5 +1,8 @@
 use std::collections::{HashMap, HashSet};
 use std::mem;
+use crate::procedures::division::DIVISION;
+use crate::procedures::{SHIFT_LEFT, SHIFT_RIGHT};
+use crate::procedures::multiplication::MULTIPLICATION;
 use crate::structure::{Command, Condition, Declaration, Identifier, Operation, Operator, Program, Value};
 
 #[derive(Debug)]
@@ -19,11 +22,11 @@ impl Preprocessor {
             function_counter: HashMap::new(),
             found_iterators: Vec::new(),
         };
-        new.function_counter.insert("@multiply".to_string(), 0);
-        new.function_counter.insert("@divide".to_string(), 0);
-        new.function_counter.insert("@modulo".to_string(), 0);
-        new.function_counter.insert("@shift_left".to_string(), 0);
-        new.function_counter.insert("@shift_right".to_string(), 0);
+        new.function_counter.insert(MULTIPLICATION.to_string(), 0);
+        new.function_counter.insert(DIVISION.to_string(), 0);
+        new.function_counter.insert(DIVISION.to_string(), 0);
+        new.function_counter.insert(SHIFT_LEFT.to_string(), 0);
+        new.function_counter.insert(SHIFT_RIGHT.to_string(), 0);
 
         new
     }
@@ -135,7 +138,7 @@ impl Preprocessor {
                     let counter = self.function_counter.entry("@shift_left".to_string()).or_insert(0);
                     *counter += log as usize;
                 } else {
-                    self.add_function_use("@multiply")?;
+                    self.add_function_use(MULTIPLICATION)?;
                 }
             }
             (Value::Identifier(var), Value::Literal(lit), Operator::Divide) => {
@@ -150,17 +153,17 @@ impl Preprocessor {
                     let counter = self.function_counter.entry("@shift_right".to_string()).or_insert(0);
                     *counter += log as usize;
                 } else {
-                    self.add_function_use("@divide")?;
+                    self.add_function_use(DIVISION)?;
                 }
             },
             (_,_,Operator::Multiply) => {
-                self.add_function_use("@multiply")?;
+                self.add_function_use(MULTIPLICATION)?;
             }
             (_,_,Operator::Divide) => {
-                self.add_function_use("@divide")?;
+                self.add_function_use(DIVISION)?;
             }
             (_,_,Operator::Modulo) => {
-                self.add_function_use("@modulo")?;
+                self.add_function_use(DIVISION)?;
             }
             _ => {}
         }

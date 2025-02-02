@@ -1,9 +1,11 @@
-use crate::intermediate::{CommandTranslator, Instruction, TranslationError};
-use crate::procedures::procedures::FunctionRepository;
+use crate::intermediate::{InstructionFactory, Instruction, TranslationError};
+use crate::procedures::division::DIVISION;
+use crate::procedures::multiplication::MULTIPLICATION;
+use crate::procedures::FunctionRepository;
 use crate::structure::{Identifier, Operation, Operator, Value};
 use crate::variables::{Pointer, Type, VariableDictionary};
 
-impl CommandTranslator {
+impl InstructionFactory {
     pub(crate) fn translate_assign(
         &mut self,
         variable: Identifier,
@@ -44,11 +46,13 @@ impl CommandTranslator {
                 self.push(Instruction::Store(Pointer::Cell(7)));
 
                 self.call_function(
-                    "@multiply",
+                    MULTIPLICATION,
                     vec![],
                     variables,
                     functions
                 )?;
+
+                self.load(Type::Variable(Pointer::Cell(4)));
 
             }
             Operator::Divide => {
@@ -61,7 +65,7 @@ impl CommandTranslator {
                 self.push(Instruction::Store(Pointer::Cell(7)));
 
                 self.call_function(
-                    "@divide",
+                    DIVISION,
                     vec![],
                     variables,
                     functions
@@ -87,7 +91,7 @@ impl CommandTranslator {
                         self.push(Instruction::Store(Pointer::Cell(7)));
 
                         self.call_function(
-                            "@divide",
+                            DIVISION,
                             vec![],
                             variables,
                             functions

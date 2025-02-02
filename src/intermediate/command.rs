@@ -1,9 +1,9 @@
-use crate::intermediate::{CommandTranslator, Instruction, TranslationError};
-use crate::procedures::procedures::FunctionRepository;
+use crate::intermediate::{Instruction, InstructionFactory, TranslationError};
+use crate::procedures::FunctionRepository;
 use crate::structure::{Command, Identifier, Value};
 use crate::variables::{Pointer, VariableDictionary};
 
-impl CommandTranslator {
+impl InstructionFactory {
     pub(crate) fn translate_command(
         &mut self,
         command: Command,
@@ -12,7 +12,8 @@ impl CommandTranslator {
     ) -> Result<(), TranslationError> {
         match command {
             Command::Assign(variable, operation) => {
-                self.action_stack.push(format!("Assign {} :=", Value::Identifier(variable.clone())));
+                self.action_stack
+                    .push(format!("Assign {} :=", Value::Identifier(variable.clone())));
                 self.translate_assign(variable, operation, variables, functions)?;
             }
             Command::If(condition, commands) => {
@@ -65,12 +66,13 @@ impl CommandTranslator {
                 self.set_label(start_label.clone());
                 self.translate_commands(commands, variables, functions)?;
                 self.handle_condition(condition, variables, &start_label)?;
-
             }
             Command::For(iter, start, end, commands) => {
                 self.action_stack.push("For".to_string());
 
-                let iter_end_type = variables.read(Value::Identifier(Identifier::Variable(format!("{}_end", iter))))?;
+                let iter_end_type = variables.read(Value::Identifier(Identifier::Variable(
+                    format!("{}_end", iter),
+                )))?;
                 let iter_end_ptr = self.prepare_pointer(iter_end_type, 2);
                 let iter_type = variables.read(Value::Identifier(Identifier::Variable(iter)))?;
                 let iter_ptr = self.prepare_pointer(iter_type, 1);
@@ -92,12 +94,13 @@ impl CommandTranslator {
                 self.push(Instruction::Subtr(iter_end_ptr));
                 self.push(Instruction::Jpos(2));
                 self.push(Instruction::Goto(start_label));
-
             }
             Command::ForDown(iter, start, end, commands) => {
                 self.action_stack.push("ForDown".to_string());
 
-                let iter_end_type = variables.read(Value::Identifier(Identifier::Variable(format!("{}_end", iter))))?;
+                let iter_end_type = variables.read(Value::Identifier(Identifier::Variable(
+                    format!("{}_end", iter),
+                )))?;
                 let iter_end_ptr = self.prepare_pointer(iter_end_type, 2);
                 let iter_type = variables.read(Value::Identifier(Identifier::Variable(iter)))?;
                 let iter_ptr = self.prepare_pointer(iter_type, 1);
@@ -118,19 +121,20 @@ impl CommandTranslator {
                 self.push(Instruction::Subtr(iter_end_ptr));
                 self.push(Instruction::Jneg(2));
                 self.push(Instruction::Goto(start_label));
-
             }
             Command::FunctionCall(name, arguments) => {
+                self.action_stack.push(format!("Call function {}", name));
+
                 self.call_function(&name, arguments, variables, functions)?;
             }
             Command::Read(id) => {
-                self.action_stack.push(format!("Read {}", Value::Identifier(id.clone())));
+                self.action_stack
+                    .push(format!("Read {}", Value::Identifier(id.clone())));
                 self.read(variables.write(Value::Identifier(id))?);
             }
             Command::Write(value) => {
                 self.action_stack.push(format!("Write {}", value));
                 self.write(variables.read(value)?);
-
             }
         }
         self.action_stack.pop();

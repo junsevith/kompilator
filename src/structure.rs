@@ -206,7 +206,14 @@ impl Debug for Procedure {
 
 impl Display for Operation {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
-        write!(f, "{} {} {}", self.left, self.operator, self.right)
+        match self.operator {
+            Operator::Value => {
+                write!(f, "{}", self.left)
+            }
+            _ => {
+                write!(f, "{} {} {}", self.left, self.operator, self.right)
+            }
+        }
     }
 }
 
@@ -251,14 +258,19 @@ impl Display for Value {
                 write!(f, "lit_{}", val)
             }
             Value::Identifier(Identifier::Variable(name)) => {
-                write!(f, "var_{}", name)
+                write!(f, "var_{}", remove_program_things(name))
             }
             Value::Identifier(Identifier::ArrayLit(name, index)) => {
-                write!(f, "arr_{}[lit {}]", name, index)
+                write!(f, "arr_{}[lit {}]", remove_program_things(name), index)
             }
             Value::Identifier(Identifier::ArrayVar(name, var)) => {
-                write!(f, "arr_{}[var {}]", name, var)
+                write!(f, "arr_{}[var {}]", remove_program_things(name), remove_program_things(var))
             }
         }
     }
+}
+
+fn remove_program_things(name: &str) -> String {
+    let res = name.split("@").collect::<Vec<&str>>();
+    res.last().unwrap().to_string()
 }

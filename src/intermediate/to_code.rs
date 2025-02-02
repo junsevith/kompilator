@@ -1,10 +1,9 @@
 use crate::intermediate::program_translator::Translator;
 use crate::intermediate::{Instruction, InstructionLine};
 use crate::variables::Pointer;
-use std::fmt::format;
 
 impl Translator {
-    pub fn to_code(&self) -> String {
+    pub fn to_code(&self, debug: bool) -> String {
         let mut code = String::new();
         for InstructionLine {
             instruction,
@@ -35,7 +34,14 @@ impl Translator {
                     panic!("Instruction {:?} not allowed", instruction);
                 }
             };
-            code.push_str(format!("{:<10} #{} @{:?}\n", instr, comment, labels).as_str());
+            match debug {
+                true => {
+                    code.push_str(format!("{:<10} #@[{:<20}] #{}\n", instr, labels.join(", "), comment).as_str());
+                }
+                false => {
+                    code.push_str(format!("{}\n", instr).as_str());
+                }
+            }
         }
         code
     }

@@ -1,14 +1,17 @@
-use crate::intermediate::{CommandTranslator, Instruction, TranslationError};
+use crate::intermediate::TranslationError::ErrorWithLocation;
+use crate::intermediate::{Instruction, InstructionFactory, TranslationError};
 use crate::preprocessor::Preprocessor;
-use crate::procedures::procedures::{
-    new_function_repository, FunctionRepository, ProcedureHandler, RegularProcedure,
-};
-use crate::structure::{Procedure, Program};
+use crate::procedures::assembly::AssemblyProcedure;
+use crate::procedures::division::{division_procedure, DIVISION};
+use crate::procedures::multiplication::{multiplication_procedure, MULTIPLICATION};
+use crate::procedures::regular::RegularProcedure;
+use crate::procedures::{FunctionRepository, ProcedureHandler};
+use crate::structure::Program;
 use crate::variables::VariableDictionary;
 use std::collections::HashMap;
 
 pub struct Translator {
-    pub(crate) program: CommandTranslator,
+    pub(crate) program: InstructionFactory,
     functions: FunctionRepository,
     memory_used: usize,
 }
@@ -16,10 +19,24 @@ pub struct Translator {
 impl Translator {
     pub fn new() -> Self {
         Translator {
-            program: CommandTranslator::new("alloc".to_string(), 0),
+            program: InstructionFactory::new("alloc".to_string(), 0),
             memory_used: 10,
-            functions: new_function_repository(),
+            functions: HashMap::new(),
         }
+    }
+
+    pub fn compile(&mut self, mut program: Program) -> Option<String> {
+        match self.translate(program) {
+            Ok(_) => {
+                println!("Compilation successful!");
+            }
+            Err(error) => {
+                println!("Error happened during compilation:");
+                println!("{:?}", error);
+                return None;
+            }
+        }
+        Some(self.to_code(false))
     }
 
     pub fn translate(&mut self, mut program: Program) -> Result<(), TranslationError> {
@@ -31,13 +48,29 @@ impl Translator {
         preprocessor
             .process_program(&mut program)?;
 
+        let defaults = vec![
+            (MULTIPLICATION, Box::new(AssemblyProcedure::new(
+                MULTIPLICATION,
+                multiplication_procedure,
+            ))),
+            (DIVISION, Box::new(AssemblyProcedure::new(DIVISION, division_procedure)),)
+        ];
+
+        for (name, function) in defaults {
+            self.prepare_procedure(&preprocessor.function_counter, &name.to_string(), function)?;
+        }
+
         for procedure in program.procedures {
-            self.translate_procedure(procedure, preprocessor.function_counter.clone())?;
+            let name = procedure.name.clone();
+
+            let function: Box<dyn ProcedureHandler> = Box::new(RegularProcedure::new(procedure));
+
+            self.prepare_procedure(&preprocessor.function_counter, &name, function)?;
         }
 
         let mut variables = VariableDictionary::new(self.memory_used);
         let mut intermediate =
-            CommandTranslator::new("main".to_string(), self.program.instructions.len());
+            InstructionFactory::new("Main".to_string(), self.program.instructions.len());
         let main = self.program.reserve_label("main");
         intermediate.set_label(main.clone());
 
@@ -46,33 +79,28 @@ impl Translator {
                 .add(declaration)?;
         }
 
-        intermediate.translate_commands(program.commands, &mut variables, &mut self.functions)?;
+        match intermediate.translate_commands(program.commands, &mut variables, &mut self.functions) {
+            Ok(ok) => ok,
+            Err(error) => {
+                return Err(ErrorWithLocation(format!("{:?}", error), intermediate.action_stack))
+            }
+        };
 
         self.program.merge(intermediate);
 
         self.program.push(Instruction::Halt);
 
-        self.program.print();
-
         self.process_code(&mut variables, main, literals)?;
         Ok(())
     }
 
-    fn translate_procedure(
-        &mut self,
-        procedure: Procedure,
-        function_counter: HashMap<String, usize>,
-    ) -> Result<(), TranslationError> {
-        let name = procedure.name.clone();
-
-        let mut function = RegularProcedure::new(procedure);
-
-        match function_counter.get(&name) {
+    fn prepare_procedure(&mut self, function_counter: &HashMap<String, usize>, name: &String, mut function: Box<dyn ProcedureHandler>) -> Result<(), TranslationError> {
+        match function_counter.get(name) {
             None | Some(0) => {
                 //Do nothing
             }
             Some(1) => {
-                self.functions.insert(name.clone(), Box::new(function));
+                self.functions.insert(name.clone(), function);
             }
             _ => {
                 let (instructions, stack) = function.initialize(
@@ -82,10 +110,9 @@ impl Translator {
                 )?;
                 self.program.merge(instructions);
                 self.memory_used = stack;
-                self.functions.insert(name.clone(), Box::new(function));
+                self.functions.insert(name.clone(), function);
             }
         }
         Ok(())
     }
-
 }

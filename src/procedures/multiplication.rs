@@ -1,31 +1,52 @@
-use crate::intermediate::{CommandTranslator, TranslationError};
-use crate::procedures::procedures::{FunctionRepository, ProcedureHandler};
+use crate::intermediate::{Instruction, InstructionFactory};
+use crate::variables::Pointer;
 
-pub struct MultiplicationProcedure;
+pub const MULTIPLICATION: &str = "@multiplication";
 
-impl MultiplicationProcedure {
-    pub fn new() -> Self {
-        MultiplicationProcedure
-    }
-}
+pub fn multiplication_procedure(instr: &mut InstructionFactory) {
+    instr.push(Instruction::Subtr(Pointer::Cell(0)));
+    instr.push(Instruction::Store(Pointer::Cell(4)));
 
-impl ProcedureHandler for MultiplicationProcedure {
-    fn initialize(
-        &mut self,
-        variable_stack: usize,
-        instruction_start: usize,
-        function_repository: &mut FunctionRepository,
-    ) -> Result<(CommandTranslator, usize), TranslationError> {
-        unimplemented!()
-    }
+    instr.push(Instruction::Load(Pointer::Cell(6)));
+    instr.push(Instruction::Jzero(37));
+    instr.push(Instruction::Jpos(3));
+    instr.push(Instruction::Subtr(Pointer::Cell(0)));
+    instr.push(Instruction::Subtr(Pointer::Cell(6)));
+    instr.push(Instruction::Store(Pointer::Cell(2)));
 
-    fn call(
-        &mut self,
-        arguments: Vec<String>,
-        variable_dictionary: &mut crate::variables::VariableDictionary,
-        instructions: &mut CommandTranslator,
-        function_repository: &mut FunctionRepository,
-    ) -> Result<(), TranslationError> {
-        unimplemented!()
-    }
+    instr.push(Instruction::Load(Pointer::Cell(7)));
+    instr.push(Instruction::Jzero(31));
+    instr.push(Instruction::Jpos(3));
+    instr.push(Instruction::Subtr(Pointer::Cell(0)));
+    instr.push(Instruction::Subtr(Pointer::Cell(7)));
+    instr.push(Instruction::Store(Pointer::Cell(3)));
+
+    instr.push(Instruction::Load(Pointer::Cell(3)));
+    instr.push(Instruction::Half);
+    instr.push(Instruction::Add(Pointer::Cell(0)));
+    instr.push(Instruction::Subtr(Pointer::Cell(3)));
+    instr.push(Instruction::Jzero(4));
+    instr.push(Instruction::Load(Pointer::Cell(4)));
+    instr.push(Instruction::Add(Pointer::Cell(2)));
+    instr.push(Instruction::Store(Pointer::Cell(4)));
+    instr.push(Instruction::Load(Pointer::Cell(3)));
+    instr.push(Instruction::Half);
+    instr.push(Instruction::Jzero(6));
+    instr.push(Instruction::Store(Pointer::Cell(3)));
+    instr.push(Instruction::Load(Pointer::Cell(2)));
+    instr.push(Instruction::Add(Pointer::Cell(2)));
+    instr.push(Instruction::Store(Pointer::Cell(2)));
+    instr.push(Instruction::Jump(-15));
+
+    instr.push(Instruction::Load(Pointer::Cell(6)));
+    instr.push(Instruction::Jneg(4));
+    instr.push(Instruction::Load(Pointer::Cell(7)));
+    instr.push(Instruction::Jneg(4));
+    instr.push(Instruction::Jump(6));
+    instr.push(Instruction::Load(Pointer::Cell(7)));
+    instr.push(Instruction::Jneg(4));
+    instr.push(Instruction::Subtr(Pointer::Cell(0)));
+    instr.push(Instruction::Subtr(Pointer::Cell(4)));
+    instr.push(Instruction::Store(Pointer::Cell(4)));
+
 }

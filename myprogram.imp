@@ -1,19 +1,10 @@
 # Binarna postać liczby
-PROCEDURE gcd(T sito) IS
-    x
-BEGIN
-  FOR i FROM 2 TO 20 DO
-      x:= 20-i;
-      sito[i]:=x;
-  ENDFOR
-
-END
-
 PROGRAM IS
-	s[2:100]
+	x, y
 BEGIN
-    gcd(s);
-    FOR j FROM 2 TO 20 DO
-          WRITE s[j];
-    ENDFOR
+    x := 6;
+    y := x / 3;
+    WRITE y;
+    x := 13%4;
+    WRITE x;
 END

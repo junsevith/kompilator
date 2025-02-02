@@ -1,37 +1,57 @@
 # w komórce 2 mamy liczbe pierwsza
 # w komórce 3 mamy liczbe druga mniejszą
 # w komórce 4 mamy wynik
+# 6 - zapis liczby 1
+# 7 - zapis l;iczby 2
 
+GET 6
+GET 7
 
-@label start
 # ustawiamy 4 na zero
 SUB 0
 STORE 4
 
-@label loop
-# sprawdzamy pierwszy bit
-LOAD 3
+LOAD 6           #ładujemy licznik
+JZERO 37       #jeśli licznik = 0 to @koniec
+JPOS 3          #jeśli licznik ujemny to odwracamy znak
+SUB 0
+SUB 6
+STORE 2
+
+LOAD 7           #ładujemy licznik
+JZERO 31       #jeśli licznik = 0 to @koniec
+JPOS 3          #jeśli licznik ujemny to odwracamy znak
+SUB 0
+SUB 7
+STORE 3
+
+LOAD 3 #@label loop # sprawdzamy pierwszy bit
 HALF
 ADD 0
 SUB 3
-# jeśli jeden to w p0 mamy -1 wpp 0
-JZERO 4 @after
-# dodajemy liczbe 2 do wyniku
-LOAD 4
+JZERO 4 #@after # jeśli jeden to w p0 mamy -1 wpp 0
+LOAD 4 # dodajemy liczbe 2 do wyniku
 ADD 2
 STORE 4
-@after
-# Bitowo przesuwamy liczbe 3
-LOAD 3
+LOAD 3 #@after # Bitowo przesuwamy liczbe 3
 HALF 
-JZERO @end
+JZERO 6
 STORE 3
-# Bitowo przesuwamy liczbe 2
-LOAD 2
+LOAD 2 # Bitowo przesuwamy liczbe 2
 ADD 2
 STORE 2
-JUMP @loop
-@end
-LOAD 4
+JUMP -15
 
-RETURN 5
+LOAD 6
+JNEG 4
+LOAD 7
+JNEG 4
+JUMP 6
+LOAD 7
+JNEG 4
+SUB 0
+SUB 4
+STORE 4
+
+PUT 4 #@end
+HALT

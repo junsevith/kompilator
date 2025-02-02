@@ -1,13 +1,13 @@
 mod assign;
 mod command;
-pub mod program_translator;
 mod condition;
+pub mod program_translator;
 mod scanner;
 mod to_code;
+mod action_stack;
 
 use crate::preprocessor::StaticAnalysisError;
-use crate::procedures::procedures::{FunctionRepository, ProcedureHandler};
-use crate::procedures::DummyProcedure;
+use crate::procedures::{DummyProcedure, FunctionRepository, ProcedureHandler};
 use crate::structure::Declaration::{ArrayDecl, VariableDecl};
 use crate::structure::{Command, Identifier, Operation, Operator, Value};
 use crate::variables::{Pointer, Type, VariableDictionary, VariableError};
@@ -50,7 +50,7 @@ pub enum Instruction {
     LoadKPlus3,
     Halt,
 }
-pub struct CommandTranslator {
+pub struct InstructionFactory {
     pub instructions: Vec<InstructionLine>,
     label_counter: usize,
     next_labels: Vec<String>,
@@ -63,6 +63,7 @@ pub enum TranslationError {
     PreprocessorError(StaticAnalysisError),
     NegativeShift(String),
     NoFunction(String),
+    ErrorWithLocation(String, Vec<String>),
 }
 
 impl Debug for TranslationError {
@@ -80,6 +81,10 @@ impl Debug for TranslationError {
             TranslationError::NoFunction(err) => {
                 write!(f, "There is no declared function with name: {:?}", err)
             }
+            TranslationError::ErrorWithLocation(error, location) => {
+                write!(f, "{}\n", error)?;
+                write!(f, "Location: {}", location.join(" -> "))
+            }
         }
     }
 }
@@ -96,9 +101,9 @@ impl From<StaticAnalysisError> for TranslationError {
     }
 }
 
-impl CommandTranslator {
+impl InstructionFactory {
     pub fn new(name: String, instruction_start: usize) -> Self {
-        CommandTranslator {
+        InstructionFactory {
             label_counter: 0,
             instructions: Vec::new(),
             action_stack: vec![name],
@@ -127,8 +132,6 @@ impl CommandTranslator {
         }
         Ok(())
     }
-
-
 
     fn load(&mut self, variable: Type) {
         match variable {
@@ -227,7 +230,7 @@ impl CommandTranslator {
         self.instructions.len() + self.instruction_start
     }
 
-    pub fn merge(&mut self, mut other: CommandTranslator) {
+    pub fn merge(&mut self, mut other: InstructionFactory) {
         if self.where_we_finished() != other.instruction_start {
             panic!("Error in merging");
         }
@@ -235,9 +238,19 @@ impl CommandTranslator {
         self.next_labels.append(&mut other.next_labels);
     }
 
-    pub fn call_function(&mut self, name: &str, arguments: Vec<String>, variables: &mut VariableDictionary, functions: &mut FunctionRepository) -> Result<(), TranslationError> {
+    pub fn call_function(
+        &mut self,
+        name: &str,
+        arguments: Vec<String>,
+        variables: &mut VariableDictionary,
+        functions: &mut FunctionRepository,
+    ) -> Result<(), TranslationError> {
         let mut dummy: Box<dyn ProcedureHandler> = Box::new(DummyProcedure);
-        let fun = functions.get_mut(name).map_or(Err(TranslationError::NoFunction(name.to_string())), |f| Ok(f))?;
+        let fun = functions
+            .get_mut(name)
+            .map_or(Err(TranslationError::NoFunction(name.to_string())), |f| {
+                Ok(f)
+            })?;
         mem::swap(fun, &mut dummy);
         dummy.call(arguments, variables, self, functions)?;
         functions.insert(name.to_string(), dummy);
@@ -255,7 +268,7 @@ fn test() {
         left: Value::Identifier(Identifier::Variable("a".to_string())),
         right: Value::Literal(1),
     };
-    let mut program = CommandTranslator::new("Test1".to_string(), 0);
+    let mut program = InstructionFactory::new("Test1".to_string(), 0);
     program
         .translate_assign(
             Identifier::Variable("a".to_string()),
@@ -280,7 +293,7 @@ fn test2() {
         left: Value::Literal(1),
         right: Value::Identifier(Identifier::ArrayVar("c".to_string(), "b".to_string())),
     };
-    let mut program = CommandTranslator::new("Test2".to_string(), 0);
+    let mut program = InstructionFactory::new("Test2".to_string(), 0);
     program
         .translate_assign(
             Identifier::Variable("a".to_string()),
@@ -307,7 +320,7 @@ fn test3() {
         left: Value::Identifier(Identifier::Variable("b".to_string())),
         right: Value::Literal(2),
     };
-    let mut program = CommandTranslator::new("Test3".to_string(), 0);
+    let mut program = InstructionFactory::new("Test3".to_string(), 0);
     program
         .translate_assign(
             Identifier::Variable("a".to_string()),
@@ -321,5 +334,4 @@ fn test3() {
     program.push(Instruction::Halt);
 
     program.print();
-
 }

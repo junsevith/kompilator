@@ -1,8 +1,8 @@
-use crate::intermediate::{CommandTranslator, Instruction, TranslationError};
+use crate::intermediate::{InstructionFactory, Instruction, TranslationError};
 use crate::structure::{Condition, ConditionOperator};
 use crate::variables::{Pointer, VariableDictionary};
 
-impl CommandTranslator {
+impl InstructionFactory {
     pub(crate) fn handle_condition(&mut self, condition: Condition, variables: &mut VariableDictionary, label: &String) -> Result<(), TranslationError> {
         self.action_stack.push(format!("Condition {}", condition));
 
