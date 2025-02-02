@@ -56,7 +56,7 @@ match {
     ":="
 } else {
     r"[_a-z]+" => PIDENTIFIER,
-    r"-?[0-9]+" => NUM,
+    r"[0-9]+" => NUM,
 
 }
 
@@ -207,6 +207,7 @@ condition: Condition = {
 
 value: Value = {
     NUM => Value::Literal(i64::from_str(<>).unwrap()),
+    "-" <n:NUM> => Value::Literal(-i64::from_str(n).unwrap()),
     identifier => Value::Identifier(<>)
 }
 

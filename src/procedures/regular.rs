@@ -1,13 +1,13 @@
-
+use crate::intermediate::TranslationError::{ErrorWithLocation};
 use crate::intermediate::{Instruction, InstructionFactory, TranslationError};
 use crate::procedures::swap_vars::swap_commands;
 use crate::procedures::{function_return, function_start, FunctionRepository, ProcedureHandler};
 use crate::structure::{ArgumentDecl, Command, Declaration, Identifier, Procedure, Value};
 use crate::variables::VariableDictionary;
+use crate::variables::VariableError;
 use crate::variables::VariableError::VariableCollision;
 use std::collections::HashMap;
 use std::mem;
-use crate::intermediate::TranslationError::{ErrorWithLocation, VariableError};
 
 pub struct RegularProcedure {
     inline: bool,
@@ -55,12 +55,37 @@ impl ProcedureHandler for RegularProcedure {
                 self.prepare_for_call(arguments, variable_dictionary, instructions)?;
             }
             true => {
-                self.inline_function(
+                let mut variable_map = HashMap::new();
+                match self.inline_function(
                     arguments,
                     variable_dictionary,
                     instructions,
                     function_repository,
-                )?;
+                    &mut variable_map,
+                ) {
+                    Err(TranslationError::VariableError(mut error)) => {
+                        let mut asdf = HashMap::new();
+                        variable_map.iter().for_each(|(k, v)| {
+                            asdf.insert(v.clone(), k.clone());
+                        });
+                        match &mut error {
+                            VariableError::ArrayCollision(name) |
+                            VariableCollision(name) |
+                            VariableError::ArrayMixup(name) |
+                            VariableError::VariableMixup(name) |
+                            VariableError::NoArray(name) |
+                            VariableError::NoVariable(name) |
+                            VariableError::InvalidIndex(name, _) |
+                            VariableError::NotInitialized(name) |
+                            VariableError::CantModifyConstant(name) => {
+                                let new_name = asdf.get(name).unwrap_or(name);
+                                *name = new_name.clone();
+                            }
+                        }
+                        Err(error)?
+                    }
+                    other => other?
+                };
             }
         }
         Ok(())
@@ -151,12 +176,32 @@ impl RegularProcedure {
         variable_dictionary: &mut VariableDictionary,
         instructions: &mut InstructionFactory,
         function_repository: &mut FunctionRepository,
+        variable_map: &mut HashMap<String, String>,
     ) -> Result<(), TranslationError> {
-        let mut variable_map = HashMap::new();
+
+        for (declared, provided) in self.arguments.iter().zip(arguments.iter()) {
+            match declared {
+                ArgumentDecl::VariableArg(name) | ArgumentDecl::ArrayArg(name) => {
+                    variable_map
+                        .insert(name.clone(), provided.clone())
+                        .map_or(Ok(()), |x| Err(TranslationError::VariableError(VariableCollision(x))))?;
+                }
+            }
+            match declared {
+                ArgumentDecl::VariableArg(arg) => {
+                    variable_dictionary.write(Value::Identifier(Identifier::Variable(provided.clone())))?;
+                }
+                ArgumentDecl::ArrayArg(name) => {
+                    variable_dictionary.get_array_offset(provided)?;
+                }
+            }
+        }
+
+        instructions.action_stack.pop();
 
         instructions
             .action_stack
-            .push(format!("Inlined procedure {}", self.name));
+            .push(format!("Inlined Procedure {}", self.name));
 
         for mut variable in self.variables.iter_mut() {
             let old_name;
@@ -175,23 +220,15 @@ impl RegularProcedure {
             }
             variable_map
                 .insert(old_name.clone(), new_name)
-                .map_or(Ok(()), |x| Err(VariableError(VariableCollision(x))))?;
+                .map_or(Ok(()), |x| Err(TranslationError::VariableError(VariableCollision(x))))?;
             variable_dictionary.add(variable.clone())?;
         }
 
         // println!("{:?}", self.variables);
 
-        for (declared, provided) in self.arguments.iter().zip(arguments.iter()) {
-            match declared {
-                ArgumentDecl::VariableArg(name) | ArgumentDecl::ArrayArg(name) => {
-                    variable_map
-                        .insert(name.clone(), provided.clone())
-                        .map_or(Ok(()), |x| Err(VariableError(VariableCollision(x))))?;
-                }
-            }
-        }
-
         swap_commands(&mut self.commands, &variable_map)?;
+
+
 
         instructions.translate_commands(
             mem::take(&mut self.commands),
@@ -199,16 +236,17 @@ impl RegularProcedure {
             function_repository,
         )?;
 
-        instructions.action_stack.pop();
+
         Ok(())
     }
 
     fn construct_function(&mut self, mut function_repository: &mut &mut FunctionRepository, mut dictionary: &mut VariableDictionary, translator: &mut InstructionFactory) -> Result<(), TranslationError> {
-        for declaration in self.variables.iter() {
-            dictionary.add(declaration.clone())?;
-        }
         for argument in &self.arguments {
             dictionary.add_argument(argument.clone())?;
+        }
+
+        for declaration in self.variables.iter() {
+            dictionary.add(declaration.clone())?;
         }
         dictionary.add(Declaration::VariableDecl(function_return(&self.name)))?;
 

@@ -19,8 +19,9 @@ lalrpop_mod!(
 
 fn main() {
     let parser = grammar::program_allParser::new();
-    let file = fs::read_to_string("program0.imp").unwrap();
-    // let file = fs::read_to_string("testy/error1.imp").unwrap();
+    let file = fs::read_to_string("program3.imp").unwrap();
+    // let file = fs::read_to_string("testy/error8.imp").unwrap();
+    // let file = fs::read_to_string("testy/example9.imp").unwrap();
     // let file = fs::read_to_string("myprogram.imp").unwrap();
     let ret = parser.parse(&file).unwrap();
     let mut translator = program_translator::Translator::new();
