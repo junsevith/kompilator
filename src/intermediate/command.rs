@@ -70,15 +70,15 @@ impl CommandTranslator {
             Command::For(iter, start, end, commands) => {
                 self.action_stack.push("For".to_string());
 
-                let iter_end_type = variables.write_(Value::Identifier(Identifier::Variable(format!("{}_end", iter))))?;
+                let iter_end_type = variables.read(Value::Identifier(Identifier::Variable(format!("{}_end", iter))))?;
                 let iter_end_ptr = self.prepare_pointer(iter_end_type, 2);
-                let iter_type = variables.write_(Value::Identifier(Identifier::Variable(iter)))?;
+                let iter_type = variables.read(Value::Identifier(Identifier::Variable(iter)))?;
                 let iter_ptr = self.prepare_pointer(iter_type, 1);
 
-                let start = variables.read_(start)?;
+                let start = variables.read(start)?;
                 self.load(start);
                 self.push(Instruction::Store(iter_ptr));
-                let end = variables.read_(end)?;
+                let end = variables.read(end)?;
                 self.load(end);
                 self.push(Instruction::Store(iter_end_ptr));
 
@@ -97,15 +97,15 @@ impl CommandTranslator {
             Command::ForDown(iter, start, end, commands) => {
                 self.action_stack.push("ForDown".to_string());
 
-                let iter_end_type = variables.write_(Value::Identifier(Identifier::Variable(format!("{}_end", iter))))?;
+                let iter_end_type = variables.read(Value::Identifier(Identifier::Variable(format!("{}_end", iter))))?;
                 let iter_end_ptr = self.prepare_pointer(iter_end_type, 2);
-                let iter_type = variables.write_(Value::Identifier(Identifier::Variable(iter)))?;
+                let iter_type = variables.read(Value::Identifier(Identifier::Variable(iter)))?;
                 let iter_ptr = self.prepare_pointer(iter_type, 1);
 
-                let start = variables.read_(start)?;
+                let start = variables.read(start)?;
                 self.load(start);
                 self.push(Instruction::Store(iter_ptr));
-                let end = variables.read_(end)?;
+                let end = variables.read(end)?;
                 self.load(end);
                 self.push(Instruction::Store(iter_end_ptr));
 
@@ -121,15 +121,15 @@ impl CommandTranslator {
 
             }
             Command::FunctionCall(name, arguments) => {
-                functions.get_mut(&name).unwrap().call(arguments, variables, self)?;
+                self.call_function(&name, arguments, variables, functions)?;
             }
             Command::Read(id) => {
                 self.action_stack.push(format!("Read {}", Value::Identifier(id.clone())));
-                self.read(variables.write_(Value::Identifier(id))?);
+                self.read(variables.write(Value::Identifier(id))?);
             }
             Command::Write(value) => {
                 self.action_stack.push(format!("Write {}", value));
-                self.write(variables.read_(value)?);
+                self.write(variables.read(value)?);
 
             }
         }

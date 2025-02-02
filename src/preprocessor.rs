@@ -1,4 +1,4 @@
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 use std::mem;
 use crate::structure::{Command, Condition, Declaration, Identifier, Operation, Operator, Program, Value};
 
@@ -35,16 +35,24 @@ impl Preprocessor {
             self.process_commands(&mut procedure.commands, false)?;
 
             let iters = mem::take(&mut self.found_iterators);
+            let mut set = HashSet::new();
             for iter in iters {
-                procedure.declarations.push(Declaration::VariableDecl(iter));
+                if !set.contains(&iter) {
+                    procedure.declarations.push(Declaration::ConstantDecl(iter.clone()));
+                    set.insert(iter);
+                }
             }
         }
 
         self.process_commands(&mut program.commands, false)?;
 
         let iters = mem::take(&mut self.found_iterators);
+        let mut set = HashSet::new();
         for iter in iters {
-            program.declarations.push(Declaration::VariableDecl(iter));
+            if !set.contains(&iter) {
+                program.declarations.push(Declaration::ConstantDecl(iter.clone()));
+                set.insert(iter);
+            }
         }
 
         Ok(())

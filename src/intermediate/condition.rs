@@ -1,6 +1,6 @@
 use crate::intermediate::{CommandTranslator, Instruction, TranslationError};
 use crate::structure::{Condition, ConditionOperator};
-use crate::variables::{Pointer, Type, VariableDictionary};
+use crate::variables::{Pointer, VariableDictionary};
 
 impl CommandTranslator {
     pub(crate) fn handle_condition(&mut self, condition: Condition, variables: &mut VariableDictionary, label: &String) -> Result<(), TranslationError> {
@@ -10,8 +10,8 @@ impl CommandTranslator {
 
         match operator {
             ConditionOperator::Equal => {
-                let left = variables.read_(left)?;
-                let right = variables.read_(right)?;
+                let left = variables.read(left)?;
+                let right = variables.read(right)?;
                 let right = self.prepare_pointer(right, 2);
 
                 self.load(left);
@@ -22,8 +22,8 @@ impl CommandTranslator {
                 self.push(Instruction::Goto(label.clone()));
             }
             ConditionOperator::NotEqual => {
-                let left = variables.read_(left)?;
-                let right = variables.read_(right)?;
+                let left = variables.read(left)?;
+                let right = variables.read(right)?;
                 let right = self.prepare_pointer(right, 2);
 
                 self.load(left);
@@ -33,8 +33,8 @@ impl CommandTranslator {
                 self.push(Instruction::GoZero(label.clone()));
             }
             ConditionOperator::Lesser => {
-                let left = variables.read_(left)?;
-                let right = variables.read_(right)?;
+                let left = variables.read(left)?;
+                let right = variables.read(right)?;
                 let right = self.prepare_pointer(right, 2);
 
                 self.load(left);
@@ -45,8 +45,8 @@ impl CommandTranslator {
                 self.push(Instruction::Goto(label.clone()));
             }
             ConditionOperator::Greater => {
-                let left = variables.read_(left)?;
-                let right = variables.read_(right)?;
+                let left = variables.read(left)?;
+                let right = variables.read(right)?;
                 let right = self.prepare_pointer(right, 2);
 
                 self.load(left);
@@ -57,8 +57,8 @@ impl CommandTranslator {
                 self.push(Instruction::Goto(label.clone()));
             }
             ConditionOperator::LesserEqual => {
-                let left = variables.read_(left)?;
-                let right = variables.read_(right)?;
+                let left = variables.read(left)?;
+                let right = variables.read(right)?;
                 let right = self.prepare_pointer(right, 2);
 
                 self.load(left);
@@ -68,8 +68,8 @@ impl CommandTranslator {
                 self.push(Instruction::GoPos(label.clone()));
             }
             ConditionOperator::GreaterEqual => {
-                let left = variables.read_(left)?;
-                let right = variables.read_(right)?;
+                let left = variables.read(left)?;
+                let right = variables.read(right)?;
                 let right = self.prepare_pointer(right, 2);
 
                 self.load(left);

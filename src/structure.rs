@@ -22,6 +22,7 @@ pub enum ArgumentDecl {
 pub enum Declaration {
     VariableDecl(String),
     ArrayDecl(String, i64, i64),
+    ConstantDecl(String),
 }
 
 pub enum Command {

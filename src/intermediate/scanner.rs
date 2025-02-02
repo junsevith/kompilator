@@ -49,7 +49,7 @@ impl Translator {
                     Pointer::Cell(_) => {}
                     Pointer::IndirectCell(_) => {}
                     Pointer::Literal(lit) => {
-                        let lit_type = variables.write_(Value::Identifier(
+                        let lit_type = variables.write(Value::Identifier(
                             Identifier::Variable(format!("@lit{}", lit)),
                         ))?;
                         let lit_ptr = match lit_type {
@@ -91,7 +91,7 @@ impl Translator {
                     *instruction = Instruction::Jzero(count);
                 }
 
-                Instruction::LoadCurrentLocation => {
+                Instruction::LoadKPlus3 => {
                     panic!("LoadCurrentLocation should have been replaced by Load");
                 }
                 Instruction::Halt => {}
@@ -155,7 +155,7 @@ impl Translator {
                 | Instruction::GoNeg(label)
                 | Instruction::GoZero(label) => {}
 
-                Instruction::LoadCurrentLocation => {
+                Instruction::LoadKPlus3 => {
                     let val = num as i64 + 3;
                     *comment += " LoadCurrentLocation";
                     *instruction = Instruction::Load(Pointer::Literal(val));
@@ -171,7 +171,7 @@ impl Translator {
     fn allocate_literals(&mut self, literals: Vec<i64>, variables: &mut VariableDictionary, main_label: String, literal_label: String) -> Result<(), TranslationError> {
         self.program.set_label(literal_label);
         for literal in literals {
-            let typ = variables.write_(Value::Identifier(Identifier::Variable(format!("@lit{}", literal))))?;
+            let typ = variables.write(Value::Identifier(Identifier::Variable(format!("@lit{}", literal))))?;
             let ptr = match typ {
                 Type::Variable(ptr) => ptr,
                 Type::Array(_, _) => {

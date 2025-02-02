@@ -5,13 +5,14 @@ mod condition;
 mod scanner;
 mod to_code;
 
-use crate::structure::Declaration::{ArrayDecl, VariableDecl};
-use crate::structure::{Command, Condition, Identifier, Operation, Operator, Value};
-use crate::variables::{Pointer, Type, VariableDictionary, VariableError};
-use std::fmt::{Debug, Display};
-use std::mem;
 use crate::preprocessor::StaticAnalysisError;
-use crate::procedures::procedures::FunctionRepository;
+use crate::procedures::procedures::{FunctionRepository, ProcedureHandler};
+use crate::procedures::DummyProcedure;
+use crate::structure::Declaration::{ArrayDecl, VariableDecl};
+use crate::structure::{Command, Identifier, Operation, Operator, Value};
+use crate::variables::{Pointer, Type, VariableDictionary, VariableError};
+use std::fmt::{Debug, Display, Formatter};
+use std::mem;
 
 pub struct InstructionLine {
     pub instruction: Instruction,
@@ -46,7 +47,7 @@ pub enum Instruction {
     GoNeg(String),
     GoZero(String),
     Return(Pointer),
-    LoadCurrentLocation,
+    LoadKPlus3,
     Halt,
 }
 pub struct CommandTranslator {
@@ -57,11 +58,42 @@ pub struct CommandTranslator {
     instruction_start: usize,
 }
 
-#[derive(Debug)]
 pub enum TranslationError {
     VariableError(VariableError),
     PreprocessorError(StaticAnalysisError),
     NegativeShift(String),
+    NoFunction(String),
+}
+
+impl Debug for TranslationError {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        match self {
+            TranslationError::VariableError(err) => {
+                write!(f, "Variable error: {:?}", err)
+            }
+            TranslationError::PreprocessorError(err) => {
+                write!(f, "Preprocessor error: {:?}", err)
+            }
+            TranslationError::NegativeShift(err) => {
+                write!(f, "Negative shift: {:?}", err)
+            }
+            TranslationError::NoFunction(err) => {
+                write!(f, "There is no declared function with name: {:?}", err)
+            }
+        }
+    }
+}
+
+impl From<VariableError> for TranslationError {
+    fn from(error: VariableError) -> Self {
+        TranslationError::VariableError(error)
+    }
+}
+
+impl From<StaticAnalysisError> for TranslationError {
+    fn from(error: StaticAnalysisError) -> Self {
+        TranslationError::PreprocessorError(error)
+    }
 }
 
 impl CommandTranslator {
@@ -202,17 +234,14 @@ impl CommandTranslator {
         self.instructions.append(&mut other.instructions);
         self.next_labels.append(&mut other.next_labels);
     }
-}
 
-impl VariableDictionary {
-    fn read_(&mut self, value: Value) -> Result<Type, TranslationError> {
-        self.read(value)
-            .map_err(|error| TranslationError::VariableError(error))
-    }
-
-    fn write_(&mut self, value: Value) -> Result<Type, TranslationError> {
-        self.write(value)
-            .map_err(|error| TranslationError::VariableError(error))
+    pub fn call_function(&mut self, name: &str, arguments: Vec<String>, variables: &mut VariableDictionary, functions: &mut FunctionRepository) -> Result<(), TranslationError> {
+        let mut dummy: Box<dyn ProcedureHandler> = Box::new(DummyProcedure);
+        let fun = functions.get_mut(name).map_or(Err(TranslationError::NoFunction(name.to_string())), |f| Ok(f))?;
+        mem::swap(fun, &mut dummy);
+        dummy.call(arguments, variables, self, functions)?;
+        functions.insert(name.to_string(), dummy);
+        Ok(())
     }
 }
 

@@ -1,10 +1,10 @@
-use crate::intermediate::{CommandTranslator, Instruction, InstructionLine, TranslationError};
+use crate::intermediate::{CommandTranslator, Instruction, TranslationError};
 use crate::preprocessor::Preprocessor;
 use crate::procedures::procedures::{
     new_function_repository, FunctionRepository, ProcedureHandler, RegularProcedure,
 };
-use crate::structure::{Declaration, Identifier, Procedure, Program, Value};
-use crate::variables::{Pointer, Type, VariableDictionary};
+use crate::structure::{Procedure, Program};
+use crate::variables::VariableDictionary;
 use std::collections::HashMap;
 
 pub struct Translator {
@@ -29,8 +29,7 @@ impl Translator {
 
         let mut preprocessor = Preprocessor::new();
         preprocessor
-            .process_program(&mut program)
-            .map_err(|e| TranslationError::PreprocessorError(e))?;
+            .process_program(&mut program)?;
 
         for procedure in program.procedures {
             self.translate_procedure(procedure, preprocessor.function_counter.clone())?;
@@ -44,8 +43,7 @@ impl Translator {
 
         for declaration in program.declarations {
             variables
-                .add(declaration)
-                .map_err(|e| TranslationError::VariableError(e))?;
+                .add(declaration)?;
         }
 
         intermediate.translate_commands(program.commands, &mut variables, &mut self.functions)?;

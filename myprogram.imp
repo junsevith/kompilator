@@ -1,15 +1,19 @@
 # Binarna postać liczby
-PROCEDURE last(a) IS
-  x
+PROCEDURE gcd(T sito) IS
+    x
 BEGIN
-  WRITE a;
+  FOR i FROM 2 TO 20 DO
+      x:= 20-i;
+      sito[i]:=x;
+  ENDFOR
+
 END
 
 PROGRAM IS
-	n, p
+	s[2:100]
 BEGIN
-    READ n;
-    last(n);
-    last(n);
-
+    gcd(s);
+    FOR j FROM 2 TO 20 DO
+          WRITE s[j];
+    ENDFOR
 END

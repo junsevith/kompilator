@@ -12,6 +12,7 @@ pub struct VariableDictionary {
 struct Variable {
     cell: Pointer,
     init: bool,
+    constant: bool,
 }
 #[derive(Debug)]
 struct Array {
@@ -52,35 +53,44 @@ pub enum VariableError {
     NoVariable(String),
     InvalidIndex(String, i64),
     NotInitialized(String),
+    CantModifyConstant(String),
+}
+
+fn format_var_name(name: &str) -> String {
+    let name = name.split("@").last().unwrap();
+    name.to_string()
 }
 impl Debug for VariableError {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
             VariableError::ArrayCollision(name) => {
-                write!(f, "There already exists declared array with name {}", name)
+                write!(f, "There already exists declared array with name {}", format_var_name(name))
             }
             VariableError::VariableCollision(name) => write!(
                 f,
                 "There already exists declared variable with name {}",
-                name
+                format_var_name(name)
             ),
             VariableError::ArrayMixup(name) => {
-                write!(f, "Tried to use {} as variable but it is an array", name)
+                write!(f, "Tried to use {} as array but it is an variable", format_var_name(name))
             }
             VariableError::VariableMixup(name) => {
-                write!(f, "Tried to use {} as array but it is a variable", name)
+                write!(f, "Tried to use {} as variable but it is a array", format_var_name(name))
             }
             VariableError::NoArray(name) => {
-                write!(f, "No array with name {} declared", name)
+                write!(f, "No array with name {} declared", format_var_name(name))
             }
             VariableError::NoVariable(name) => {
-                write!(f, "No variable with name {} declared", name)
+                write!(f, "No variable with name {} declared", format_var_name(name))
             }
             VariableError::InvalidIndex(name, index) => {
-                write!(f, "Invalid index {} for array {}", index, name)
+                write!(f, "Invalid index {} for array {}", index, format_var_name(name))
             }
             VariableError::NotInitialized(name) => {
-                write!(f, "Variable {} was not initialized", name)
+                write!(f, "Variable {} was not initialized", format_var_name(name))
+            }
+            VariableError::CantModifyConstant(name) => {
+                write!(f, "Variable {} is constant and cannot be modified", format_var_name(name))
             }
         }
     }
@@ -113,6 +123,7 @@ impl VariableDictionary {
                     Variable {
                         cell: Pointer::Cell(self.cell_counter),
                         init: false,
+                        constant: false,
                     },
                 );
                 self.cell_counter += 1;
@@ -131,6 +142,18 @@ impl VariableDictionary {
                 );
                 self.cell_counter += len;
             }
+            Declaration::ConstantDecl(name) => {
+                self.check_name(&name)?;
+                self.variables.insert(
+                    name,
+                    Variable {
+                        cell: Pointer::Cell(self.cell_counter),
+                        init: true,
+                        constant: true,
+                    },
+                );
+                self.cell_counter += 1;
+            }
         }
         Ok(())
     }
@@ -144,6 +167,7 @@ impl VariableDictionary {
                     Variable {
                         cell: Pointer::IndirectCell(self.cell_counter),
                         init: true,
+                        constant: false,
                     },
                 );
                 self.cell_counter += 1;
@@ -153,7 +177,7 @@ impl VariableDictionary {
                 self.arrays.insert(
                     name,
                     Array {
-                        offset: Pointer::IndirectCell(self.cell_counter),
+                        offset: Pointer::Cell(self.cell_counter),
                         start: 0,
                         length: 0,
                     },
@@ -173,7 +197,7 @@ impl VariableDictionary {
                     Err(VariableError::NoVariable(name.to_string()))
                 }
             }
-            Some(variable) => Ok(variable),
+            Some(variable)  => Ok(variable),
         }
     }
 
@@ -209,7 +233,7 @@ impl VariableDictionary {
                             )))
                         }
                     }
-                    Pointer::IndirectCell(_) => {
+                    Pointer::Cell(_) => {
                         Ok(Type::Array(array.offset, Pointer::Literal(index)))
                     }
                     _ => {
@@ -217,15 +241,16 @@ impl VariableDictionary {
                     }
                 }
             }
-            Identifier::ArrayVar(name, variable) => {
-                let variable = self.get_variable(&variable)?;
+            Identifier::ArrayVar(name, var_name) => {
+                let variable = self.get_variable(&var_name)?;
+                self.read_identifier(Identifier::Variable(var_name))?;
                 let array = self.get_array(&name)?;
                 Ok(Type::Array(array.offset, variable.cell))
             }
         }
     }
 
-    pub fn read_identifier(&self, var: Identifier) -> Result<Type, VariableError> {
+    fn read_identifier(&self, var: Identifier) -> Result<Type, VariableError> {
         match var {
             Identifier::Variable(name) => {
                 let variable = self.get_variable(&name)?;
@@ -239,10 +264,13 @@ impl VariableDictionary {
         }
     }
 
-    pub fn write_identifier(&mut self, var: Identifier) -> Result<Type, VariableError> {
+    fn write_identifier(&mut self, var: Identifier) -> Result<Type, VariableError> {
         match var {
             Identifier::Variable(name) => {
-                self.get_variable(&name)?;
+                let var = self.get_variable(&name)?;
+                if var.constant {
+                    return Err(VariableError::CantModifyConstant(name));
+                }
                 self.variables.get_mut(&name).unwrap().init = true;
                 self.pointer(Identifier::Variable(name))
             }
@@ -282,6 +310,11 @@ impl VariableDictionary {
         for arg in args {
             self.add_argument(arg).unwrap();
         }
+    }
+
+    pub fn get_array_offset(&self, name: &str) -> Result<Pointer, VariableError> {
+        let array = self.get_array(name)?;
+        Ok(array.offset)
     }
 
     pub fn show_allocation(&self) {
