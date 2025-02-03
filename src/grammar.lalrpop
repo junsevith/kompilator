@@ -56,7 +56,7 @@ match {
     ":="
 } else {
     r"[_a-z]+" => PIDENTIFIER,
-    r"[0-9]+" => NUM,
+    r"[0-9]+" => INT,
 
 }
 
@@ -145,14 +145,14 @@ declarations: Vec<Declaration> = {
     },
     <vec:declarations> "," <p:PIDENTIFIER> "[" <n1:NUM> ":" <n2:NUM> "]" => {
         let mut v = vec;
-        v.push(Declaration::ArrayDecl(p.to_string(), i64::from_str(n1).unwrap(), i64::from_str(n2).unwrap()));
+        v.push(Declaration::ArrayDecl(p.to_string(), n1, n2));
         v
     },
     <p:PIDENTIFIER> => {
         vec![Declaration::VariableDecl(p.to_string())]
     },
     <p:PIDENTIFIER> "[" <n1:NUM> ":" <n2:NUM> "]" => {
-        vec![Declaration::ArrayDecl(p.to_string(), i64::from_str(n1).unwrap(), i64::from_str(n2).unwrap())]
+        vec![Declaration::ArrayDecl(p.to_string(), n1, n2)]
     }
 }
 
@@ -206,8 +206,7 @@ condition: Condition = {
 }
 
 value: Value = {
-    NUM => Value::Literal(i64::from_str(<>).unwrap()),
-    "-" <n:NUM> => Value::Literal(-i64::from_str(n).unwrap()),
+    NUM => Value::Literal(<>),
     identifier => Value::Identifier(<>)
 }
 
@@ -219,6 +218,16 @@ identifier: Identifier = {
         Identifier::ArrayVar(p.to_string(), i.to_string())
     },
     <p:PIDENTIFIER> "[" <i:NUM> "]" => {
-        Identifier::ArrayLit(p.to_string(), i64::from_str(i).unwrap())
+        Identifier::ArrayLit(p.to_string(), i)
+    }
+}
+
+
+NUM: i64 = {
+    INT => {
+        i64::from_str(<>).unwrap()
+    },
+    "-" <i:INT> => {
+        -i64::from_str(i).unwrap()
     }
 }
