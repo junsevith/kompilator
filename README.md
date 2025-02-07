@@ -6,11 +6,11 @@ Napisany 100% w języku rust z użyciem parsera LALRPOP
 
 System obsługujący kompilacje jest skomplikowany, składa się z kilku modułów, ale co najważniejsze działa.
 
-Kompilator nie obsługuje zbyt wiele optymalizacji.
-
 Przechodzi wszystkie testy.
 
 Autor: Paweł Stanik 272338
+
+### Kompilator zajął 1 miejsce w rankingu całego kierunku
 
 Uruchamianie:
 
